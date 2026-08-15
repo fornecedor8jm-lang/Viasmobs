@@ -399,6 +399,42 @@ export const INITIAL_CITIES: City[] = [
     ]
   },
   {
+    id: 'manacapuru',
+    name: 'Manacapuru',
+    state: 'AM',
+    region: 'NORTE',
+    lat: -3.29972,
+    lng: -60.62056,
+    population: 101883,
+    unlocked: true,
+    dominated: false,
+    influence: 32,
+    taxRevenuePerHour: 11000,
+    landmark: 'Rio Solimões & Ponte Rio Manacapuru',
+    description: 'Polo do Solimões ligado à Região Metropolitana de Manaus pela Rodovia Manoel Urbano.',
+    security: { policeStations: 2, patrolCars: 6, cameras: 16, prfBases: 1, score: 54 },
+    neighborhoods: [
+      {
+        id: 'manacapuru-centro',
+        name: 'Centro & Orla do Solimões',
+        type: 'Centro',
+        influencePercent: 42,
+        dominated: false,
+        indicators: { infrastructure: 48, traffic: 42, security: 55, health: 50, transport: 48, development: 52 },
+        upgrades: []
+      },
+      {
+        id: 'manacapuru-ponte',
+        name: 'Eixo Rodovia Manoel Urbano',
+        type: 'Distrito Industrial',
+        influencePercent: 28,
+        dominated: false,
+        indicators: { infrastructure: 40, traffic: 55, security: 45, health: 38, transport: 44, development: 48 },
+        upgrades: []
+      }
+    ]
+  },
+  {
     id: 'maraba',
     name: 'Marabá',
     state: 'PA',

@@ -19,6 +19,7 @@ import { playSound } from './utils/audio';
 
 const STORAGE_KEY = 'viasmobs_game_state_v2';
 const LEGACY_STORAGE_KEY = 'brasil_vias_game_state_v1';
+const DATA_MIGRATION_KEY = 'viasmobs_data_migration_v3';
 
 type ActiveTab = 'explore' | 'routes' | 'pave' | 'boss' | 'regions';
 
@@ -34,18 +35,28 @@ function loadSavedState<T>(suffix: string, fallback: T): T {
 }
 
 function getInterpolatedCoord(coordinates: [number, number][], progress: number): [number, number] {
-  if (coordinates.length === 0) return [0, 0];
-  if (coordinates.length === 1) return coordinates[0];
-  const scaledIndex = Math.min(coordinates.length - 1, Math.max(0, progress * (coordinates.length - 1)));
+  if (!coordinates || !Array.isArray(coordinates) || coordinates.length === 0) return [0, 0];
+  const validCoords = coordinates.filter(
+    (c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])
+  );
+  if (validCoords.length === 0) return [0, 0];
+  if (validCoords.length === 1) return [validCoords[0][0], validCoords[0][1]];
+
+  const safeProgress = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+  const scaledIndex = Math.min(validCoords.length - 1, Math.max(0, safeProgress * (validCoords.length - 1)));
   const index = Math.floor(scaledIndex);
-  const next = Math.min(coordinates.length - 1, index + 1);
+  const next = Math.min(validCoords.length - 1, index + 1);
   const localProgress = scaledIndex - index;
-  const pointA = coordinates[index];
-  const pointB = coordinates[next];
-  return [
-    pointA[0] + (pointB[0] - pointA[0]) * localProgress,
-    pointA[1] + (pointB[1] - pointA[1]) * localProgress,
-  ];
+  const pointA = validCoords[index];
+  const pointB = validCoords[next];
+  if (!pointA || !pointB) return [validCoords[0][0], validCoords[0][1]];
+
+  const lat = pointA[0] + (pointB[0] - pointA[0]) * localProgress;
+  const lng = pointA[1] + (pointB[1] - pointA[1]) * localProgress;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return [validCoords[0][0], validCoords[0][1]];
+  }
+  return [lat, lng];
 }
 
 export default function App() {
@@ -73,10 +84,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('explore');
   const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tutorialOpen, setTutorialOpen] = useState(() => !localStorage.getItem('viasmobs_tutorial_seen_v1'));
+  const [tutorialOpen, setTutorialOpen] = useState(() => !localStorage.getItem('viasmobs_tutorial_seen_v2'));
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [firstWorkComplete, setFirstWorkComplete] = useState(() => localStorage.getItem('viasmobs_first_work_complete_v1') === 'true');
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security'>('overview');
   const economyRef = useRef(economy);
-  const tileLayer: TileLayerType = 'osm';
+  const [tileLayer, setTileLayer] = useState<TileLayerType>('terrain');
 
   const currentRegion = useMemo(() => {
     const unlockedRegions = regions.filter((region) => region.unlocked);
@@ -96,6 +110,25 @@ export default function App() {
   }, [bossSectors, cities, economy, regions, roads]);
 
   useEffect(() => {
+    if (localStorage.getItem(DATA_MIGRATION_KEY)) return;
+    const manacapuru = INITIAL_CITIES.find((city) => city.id === 'manacapuru');
+    const manacapuruRoad = INITIAL_ROADS.find((road) => road.id === 'road_manaus_manacapuru');
+    const firstWorkRoad = INITIAL_ROADS.find((road) => road.id === 'road_macapa_portogrande');
+
+    if (manacapuru) {
+      setCities((previous) => previous.some((city) => city.id === manacapuru.id) ? previous : [...previous, manacapuru]);
+    }
+    setRoads((previous) => {
+      let next = previous.some((road) => road.id === manacapuruRoad?.id) || !manacapuruRoad ? previous : [...previous, manacapuruRoad];
+      if (firstWorkRoad && economyRef.current.roadsPavedKm <= 25) {
+        next = next.map((road) => road.id === firstWorkRoad.id ? firstWorkRoad : road);
+      }
+      return next;
+    });
+    localStorage.setItem(DATA_MIGRATION_KEY, 'true');
+  }, []);
+
+  useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), 4200);
     return () => window.clearTimeout(timer);
@@ -105,21 +138,24 @@ export default function App() {
     const availableRoads = roads.filter((road) => {
       const origin = cities.find((city) => city.id === road.fromCityId);
       const destination = cities.find((city) => city.id === road.toCityId);
-      return origin?.unlocked && destination?.unlocked;
+      return origin?.unlocked && destination?.unlocked && Array.isArray(road.coordinates) && road.coordinates.length > 0;
     });
     const vehicleTypes: ActiveVehicle['type'][] = ['caminhao_carga', 'carro', 'onibus_viagem', 'viatura_prf'];
-    setVehicles(availableRoads.slice(0, 5).map((road, index) => ({
-      id: `ambient_${road.id}`,
-      type: vehicleTypes[index % vehicleTypes.length],
-      name: index % 2 === 0 ? `Comboio regional ${index + 1}` : `Linha intermunicipal ${index + 1}`,
-      fromCityId: road.fromCityId,
-      toCityId: road.toCityId,
-      roadId: road.id,
-      progress: (index * 0.18) % 1,
-      speed: Math.max(0.003, road.maxSpeedKmH / 22000),
-      currentCoord: road.coordinates[0],
-      cargoValue: Math.round(road.realKm * 22),
-    })));
+    setVehicles(availableRoads.slice(0, 5).map((road, index) => {
+      const firstCoord = road.coordinates.find(c => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])) || [0.0355, -51.0705];
+      return {
+        id: `ambient_${road.id}`,
+        type: vehicleTypes[index % vehicleTypes.length],
+        name: index % 2 === 0 ? `Comboio regional ${index + 1}` : `Linha intermunicipal ${index + 1}`,
+        fromCityId: road.fromCityId,
+        toCityId: road.toCityId,
+        roadId: road.id,
+        progress: (index * 0.18) % 1,
+        speed: Math.max(0.003, (road.maxSpeedKmH || 60) / 22000),
+        currentCoord: [firstCoord[0], firstCoord[1]],
+        cargoValue: Math.round((road.realKm || 50) * 22),
+      };
+    }));
   }, []);
 
   useEffect(() => {
@@ -143,8 +179,10 @@ export default function App() {
 
       setVehicles((previous) => previous.map((vehicle) => {
         const road = roads.find((item) => item.id === vehicle.roadId);
-        if (!road) return vehicle;
-        const progress = (vehicle.progress + vehicle.speed * 0.2) % 1;
+        if (!road || !Array.isArray(road.coordinates) || road.coordinates.length === 0) return vehicle;
+        const spd = Number.isFinite(vehicle.speed) ? vehicle.speed : 0.003;
+        const curProg = Number.isFinite(vehicle.progress) ? vehicle.progress : 0;
+        const progress = (curProg + spd * 0.2) % 1;
         return { ...vehicle, progress, currentCoord: getInterpolatedCoord(road.coordinates, progress) };
       }));
 
@@ -193,7 +231,11 @@ export default function App() {
       return { ...city, neighborhoods, influence, dominated: neighborhoods.every((neighborhood) => neighborhood.dominated) };
     }));
     setSelectedCity((city) => city?.id === cityId ? { ...city, influence: Math.min(100, city.influence + 8) } : city);
-    setNotice('Bairro desenvolvido. Mais influência aumenta indústria e libera novas regiões.');
+    if (cityId === 'macapa') {
+      setNotice('Tutorial concluído: você desenvolveu um bairro. Continue até 100% para dominá-lo por completo.');
+    } else {
+      setNotice('Bairro desenvolvido. Mais influência aumenta indústria e libera novas regiões.');
+    }
   }, [spendMoney]);
 
   const handleUpgradeSecurity = useCallback((cityId: string, type: 'station' | 'patrol' | 'camera' | 'prf', cost: number) => {
@@ -219,8 +261,16 @@ export default function App() {
       : road));
     setEconomy((previous) => ({ ...previous, roadsPavedKm: previous.roadsPavedKm + 50 }));
     setSelectedRoad((road) => road?.id === roadId ? { ...road, type: targetType, condition: 100, maxSpeedKmH: speed } : road);
-    setNotice('Obra concluída. A rota está mais rápida e o fluxo melhorou.');
-  }, [spendMoney]);
+    if (roadId === 'road_macapa_portogrande' && !firstWorkComplete) {
+      setFirstWorkComplete(true);
+      localStorage.setItem('viasmobs_first_work_complete_v1', 'true');
+      setTutorialStep(2);
+      setTutorialOpen(true);
+      setNotice('Primeira obra concluída. O tutorial agora mostra como dominar o primeiro bairro.');
+    } else {
+      setNotice('Obra concluída. A rota está mais rápida e o fluxo melhorou.');
+    }
+  }, [firstWorkComplete, spendMoney]);
 
   const handleRepairRoad = useCallback((roadId: string, cost: number) => {
     if (!spendMoney(cost)) return;
@@ -313,8 +363,32 @@ export default function App() {
   }, [activeTrip]);
 
   const closeTutorial = () => {
-    localStorage.setItem('viasmobs_tutorial_seen_v1', 'true');
+    localStorage.setItem('viasmobs_tutorial_seen_v2', 'true');
     setTutorialOpen(false);
+  };
+
+  const startPavingTutorial = () => {
+    const road = roads.find((item) => item.id === 'road_macapa_portogrande');
+    if (!road || !Array.isArray(road.coordinates) || road.coordinates.length === 0) return setNotice('O trecho guiado ainda não está disponível.');
+    const targetCoord = road.coordinates[1] || road.coordinates[0] || [0.0355, -51.0705];
+    setSelectedCity(null);
+    setSelectedRoad(road);
+    if (Number.isFinite(targetCoord[0]) && Number.isFinite(targetCoord[1])) {
+      setFocusTarget({ lat: targetCoord[0], lng: targetCoord[1], zoom: 8 });
+    }
+    setActiveTab('pave');
+    setNotice('Passo guiado: clique em “Asfaltar Rodovia” para melhorar o trecho Macapá–Porto Grande.');
+  };
+
+  const startNeighborhoodTutorial = () => {
+    const macapa = cities.find((city) => city.id === 'macapa');
+    if (!macapa) return setNotice('Macapá ainda não está disponível.');
+    setActiveTab('explore');
+    setSelectedRoad(null);
+    setCitySheetTab('neighborhoods');
+    setSelectedCity(macapa);
+    setFocusTarget({ lat: macapa.lat, lng: macapa.lng, zoom: 10 });
+    setNotice('Passo guiado: escolha um bairro e clique em “Desenvolver” para aumentar sua influência.');
   };
 
   const showRoutes = () => {
@@ -341,7 +415,7 @@ export default function App() {
           pointA={pointA}
           pointB={pointB}
           tileLayer={tileLayer}
-          onSelectCity={(city) => { setSelectedCity(city); setSelectedRoad(null); setFocusTarget({ lat: city.lat, lng: city.lng, zoom: 9 }); }}
+          onSelectCity={(city) => { setSelectedCity(city); setCitySheetTab('overview'); setSelectedRoad(null); setFocusTarget({ lat: city.lat, lng: city.lng, zoom: 9 }); }}
           onSelectRoad={(road) => { setSelectedRoad(road); setSelectedCity(null); setActiveTab('pave'); }}
           onSetPointA={setPointA}
           onSetPointB={setPointB}
@@ -360,8 +434,10 @@ export default function App() {
         onOpenWorks={showWorks}
         onOpenRegions={() => { setSelectedCity(null); setSelectedRoad(null); setActiveTab('regions'); }}
         onOpenBoss={() => { setSelectedCity(null); setSelectedRoad(null); setFocusTarget({ lat: -3.8, lng: -52.5, zoom: 6.5 }); setActiveTab('boss'); }}
-        onOpenTutorial={() => setTutorialOpen(true)}
+        onOpenTutorial={() => { setTutorialStep(0); setTutorialOpen(true); }}
         onOpenRules={() => setRulesOpen(true)}
+        tileLayer={tileLayer}
+        onChangeTileLayer={setTileLayer}
       />}
 
       {activeTab === 'routes' && !activeTrip && <GoogleMapsDirections
@@ -390,7 +466,13 @@ export default function App() {
         roads={roads}
         playerMoney={economy.money}
         selectedRoad={selectedRoad}
-        onSelectRoad={(road) => { setSelectedRoad(road); setFocusTarget({ lat: road.coordinates[0][0], lng: road.coordinates[0][1], zoom: 8 }); }}
+        onSelectRoad={(road) => {
+          setSelectedRoad(road);
+          const targetCoord = road?.coordinates?.[0];
+          if (targetCoord && Number.isFinite(targetCoord[0]) && Number.isFinite(targetCoord[1])) {
+            setFocusTarget({ lat: targetCoord[0], lng: targetCoord[1], zoom: 8 });
+          }
+        }}
         onPaveRoad={handlePaveRoad}
         onRepairRoad={handleRepairRoad}
         onBuildToll={handleBuildToll}
@@ -400,9 +482,11 @@ export default function App() {
       />}
 
       {selectedCity && !activeTrip && <GoogleMapsCitySheet
+        key={`${selectedCity.id}-${citySheetTab}`}
         city={selectedCity}
         playerMoney={economy.money}
-        onClose={() => setSelectedCity(null)}
+        initialTab={citySheetTab}
+        onClose={() => { setSelectedCity(null); setCitySheetTab('overview'); }}
         onSetPointA={(city) => { setPointA(city); setSelectedCity(null); showRoutes(); }}
         onSetPointB={(city) => { setPointB(city); setSelectedCity(null); showRoutes(); }}
         onUpgradeNeighborhood={handleUpgradeNeighborhood}
@@ -424,7 +508,7 @@ export default function App() {
         onClose={() => setActiveTab('explore')}
       />}
 
-      {tutorialOpen && <TutorialModal onClose={closeTutorial} onOpenFirstRoute={() => { closeTutorial(); showRoutes(); }} />}
+      {tutorialOpen && <TutorialModal initialStep={tutorialStep} onClose={closeTutorial} onStartPaving={() => { closeTutorial(); startPavingTutorial(); }} onStartNeighborhood={() => { closeTutorial(); startNeighborhoodTutorial(); }} />}
       {rulesOpen && <RulesModal currentRegionName={currentRegion.name} citiesRequired={currentRegion.citiesRequiredToUnlockNext} onClose={() => setRulesOpen(false)} />}
     </div>
   );

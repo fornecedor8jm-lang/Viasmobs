@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { City, Road, ActiveVehicle, ActiveTrip, TileLayerType } from '../types/game';
 
@@ -30,14 +30,34 @@ const TILE_PROVIDERS = {
     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
   },
   terrain: {
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC'
   },
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }
 };
+
+function createTileLayer(type: TileLayerType) {
+  const provider = TILE_PROVIDERS[type] || TILE_PROVIDERS.osm;
+  return L.tileLayer(provider.url, {
+    attribution: provider.attribution,
+    maxZoom: 19,
+    maxNativeZoom: 19,
+    keepBuffer: 10,
+    updateWhenIdle: false,
+    updateWhenZooming: true,
+    crossOrigin: true,
+  });
+}
+
+function sanitizeCoordinateList(coordinates?: [number, number][]): [number, number][] {
+  if (!coordinates || !Array.isArray(coordinates)) return [];
+  return coordinates.filter(
+    (pt) => Array.isArray(pt) && Number.isFinite(pt[0]) && Number.isFinite(pt[1])
+  );
+}
 
 export const GameMap: React.FC<GameMapProps> = ({
   cities,
@@ -62,6 +82,7 @@ export const GameMap: React.FC<GameMapProps> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const roadsLayerRef = useRef<L.LayerGroup | null>(null);
   const vehiclesLayerRef = useRef<L.LayerGroup | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(7);
 
   // Initialize Map
   useEffect(() => {
@@ -73,15 +94,15 @@ export const GameMap: React.FC<GameMapProps> = ({
       zoom: 7,
       minZoom: 4,
       maxZoom: 18,
-      zoomControl: false
+      zoomControl: false,
+      worldCopyJump: true,
+      zoomSnap: 0.5,
+      preferCanvas: true
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    const initialTile = L.tileLayer(TILE_PROVIDERS[tileLayer].url, {
-      attribution: TILE_PROVIDERS[tileLayer].attribution,
-      maxZoom: 19
-    }).addTo(map);
+    const initialTile = createTileLayer(tileLayer).addTo(map);
 
     tileLayerRef.current = initialTile;
     markersLayerRef.current = L.layerGroup().addTo(map);
@@ -90,7 +111,17 @@ export const GameMap: React.FC<GameMapProps> = ({
 
     mapInstanceRef.current = map;
 
+    const refreshMap = () => {
+      if (!map) return;
+      setZoomLevel(map.getZoom());
+      map.invalidateSize({ animate: false, pan: false });
+    };
+    map.on('zoomend moveend resize', refreshMap);
+    window.addEventListener('resize', refreshMap);
+    window.setTimeout(refreshMap, 80);
+
     return () => {
+      window.removeEventListener('resize', refreshMap);
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -99,20 +130,26 @@ export const GameMap: React.FC<GameMapProps> = ({
   // FlyTo upon focus target changes
   useEffect(() => {
     if (!mapInstanceRef.current || !focusTarget) return;
-    mapInstanceRef.current.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom, {
-      duration: 1.2
-    });
+    if (!Number.isFinite(focusTarget.lat) || !Number.isFinite(focusTarget.lng) || !Number.isFinite(focusTarget.zoom)) return;
+    try {
+      mapInstanceRef.current.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom, {
+        duration: 1.2
+      });
+    } catch {
+      // Ignora erro de coordenadas inválidas
+    }
   }, [focusTarget]);
 
   // Update Tile Layer
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current) return;
-    mapInstanceRef.current.removeLayer(tileLayerRef.current);
-    const newTile = L.tileLayer(TILE_PROVIDERS[tileLayer].url, {
-      attribution: TILE_PROVIDERS[tileLayer].attribution,
-      maxZoom: 19
-    }).addTo(mapInstanceRef.current);
-    tileLayerRef.current = newTile;
+    try {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+      const newTile = createTileLayer(tileLayer).addTo(mapInstanceRef.current);
+      tileLayerRef.current = newTile;
+    } catch {
+      // Ignora erro de transição de camada
+    }
   }, [tileLayer]);
 
   // Render Roads & Shortcuts
@@ -121,9 +158,15 @@ export const GameMap: React.FC<GameMapProps> = ({
     roadsLayerRef.current.clearLayers();
 
     roads.forEach(road => {
+      const validCoords = sanitizeCoordinateList(road.coordinates);
+      if (validCoords.length < 2) return;
+
       const isSelected = selectedRoad?.id === road.id;
       const isTransam = road.isTransamazonicaSector;
       const isTripRoad = activeTrip?.pathRoadIds.includes(road.id);
+      const isOverview = zoomLevel < 7.5;
+      const visibleOnOverview = road.fromCityId === 'macapa' || road.fromCityId === 'manaus' || road.fromCityId === 'belem' || isTransam || isSelected || isTripRoad;
+      if (isOverview && !visibleOnOverview) return;
 
       let color = '#78716c'; // terra/padrao
       let weight = 4;
@@ -149,9 +192,11 @@ export const GameMap: React.FC<GameMapProps> = ({
         weight = 8;
       }
 
+      if (isOverview) weight = Math.max(2, weight - 2);
+
       // Outer glow for selected or transamazonica or trip route
       if (isSelected || isTransam || isTripRoad) {
-        const glowPolyline = L.polyline(road.coordinates, {
+        const glowPolyline = L.polyline(validCoords, {
           color: isTripRoad ? '#22c55e' : (isTransam ? '#dc2626' : '#38bdf8'),
           weight: weight + 6,
           opacity: 0.45,
@@ -161,7 +206,7 @@ export const GameMap: React.FC<GameMapProps> = ({
         roadsLayerRef.current?.addLayer(glowPolyline);
       }
 
-      const polyline = L.polyline(road.coordinates, {
+      const polyline = L.polyline(validCoords, {
         color,
         weight,
         opacity: 0.9,
@@ -192,9 +237,12 @@ export const GameMap: React.FC<GameMapProps> = ({
       roadsLayerRef.current?.addLayer(polyline);
 
       // Render Shortcuts if any
-      road.shortcuts.forEach(sc => {
+      road.shortcuts?.forEach(sc => {
+        const validScCoords = sanitizeCoordinateList(sc.coordinates);
+        if (validScCoords.length < 2) return;
+
         const scColor = sc.built ? '#10b981' : '#f59e0b';
-        const scPoly = L.polyline(sc.coordinates, {
+        const scPoly = L.polyline(validScCoords, {
           color: scColor,
           weight: sc.built ? 5 : 3,
           dashArray: sc.built ? undefined : '4, 6',
@@ -217,14 +265,20 @@ export const GameMap: React.FC<GameMapProps> = ({
         roadsLayerRef.current?.addLayer(scPoly);
       });
     });
-  }, [roads, selectedRoad, activeTrip]);
+  }, [roads, selectedRoad, activeTrip, zoomLevel]);
 
   // Render City Markers (Google Maps Place Pins)
   useEffect(() => {
     if (!markersLayerRef.current || !mapInstanceRef.current) return;
     markersLayerRef.current.clearLayers();
 
-    cities.filter((city) => city.unlocked || pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id).forEach(city => {
+    const overviewHubs = new Set(['macapa', 'belem', 'manaus', 'manacapuru']);
+    const isOverview = zoomLevel < 7.5;
+    cities.filter((city) => {
+      if (!city || !Number.isFinite(city.lat) || !Number.isFinite(city.lng)) return false;
+      const requiredForInteraction = pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id;
+      return requiredForInteraction || (isOverview ? overviewHubs.has(city.id) : city.unlocked);
+    }).forEach(city => {
       const isPointA = pointA?.id === city.id;
       const isPointB = pointB?.id === city.id;
       const isSelected = selectedCity?.id === city.id;
@@ -262,16 +316,18 @@ export const GameMap: React.FC<GameMapProps> = ({
           <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full ${pinColor} shadow-xl border border-white/60 transition-transform transform group-hover:scale-110">
             <span class="text-xs">${iconEmoji}</span>
             <span class="text-xs font-bold font-display whitespace-nowrap tracking-tight">${city.name}</span>
-            <span class="text-[9px] px-1 rounded bg-black/30 font-mono">${city.state}</span>
+            ${isOverview ? '' : `<span class="text-[9px] px-1 rounded bg-black/30 font-mono">${city.state}</span>`}
           </div>
           ${
-            city.unlocked
+            city.unlocked && !isOverview
               ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-slate-950/90 border border-slate-700 text-[9px] font-mono text-emerald-400 flex items-center gap-0.5 shadow">
                   <span>${Math.round(city.influence)}%</span>
                 </div>`
-              : `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1 rounded bg-rose-950 text-[9px] text-rose-300 border border-rose-800">
-                  🔒 Bloqueada
-                </div>`
+              : (!city.unlocked && !isOverview
+                ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1 rounded bg-rose-950 text-[9px] text-rose-300 border border-rose-800">
+                    🔒 Bloqueada
+                  </div>`
+                : '')
           }
         </div>
       `;
@@ -291,14 +347,18 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       markersLayerRef.current?.addLayer(marker);
     });
-  }, [cities, pointA, pointB, selectedCity]);
+  }, [cities, pointA, pointB, selectedCity, zoomLevel]);
 
   // Render Animated Vehicles
   useEffect(() => {
     if (!vehiclesLayerRef.current || !mapInstanceRef.current) return;
     vehiclesLayerRef.current.clearLayers();
 
-    vehicles.forEach(vehicle => {
+    vehicles.filter((vehicle) => {
+      if (!vehicle || !vehicle.currentCoord || !Array.isArray(vehicle.currentCoord)) return false;
+      if (!Number.isFinite(vehicle.currentCoord[0]) || !Number.isFinite(vehicle.currentCoord[1])) return false;
+      return zoomLevel >= 7.5 || vehicle.isPlayerTrip;
+    }).forEach(vehicle => {
       let iconChar = '🚗';
       let bgColor = 'bg-blue-600';
       if (vehicle.type === 'caminhao_carga') {
@@ -330,18 +390,18 @@ export const GameMap: React.FC<GameMapProps> = ({
         iconAnchor: [14, 14]
       });
 
-      const marker = L.marker(vehicle.currentCoord, { icon: vehicleIcon });
+      const marker = L.marker([vehicle.currentCoord[0], vehicle.currentCoord[1]], { icon: vehicleIcon });
       marker.bindTooltip(
         `<div class="text-xs p-1">
           <div class="font-bold text-cyan-300">${vehicle.name}</div>
-          <div class="text-slate-300">${vehicle.type} &bull; Carga: R$ ${vehicle.cargoValue.toLocaleString('pt-BR')}</div>
+          <div class="text-slate-300">${vehicle.type} &bull; Carga: R$ ${Math.round(vehicle.cargoValue || 0).toLocaleString('pt-BR')}</div>
         </div>`,
         { sticky: true }
       );
 
       vehiclesLayerRef.current?.addLayer(marker);
     });
-  }, [vehicles]);
+  }, [vehicles, zoomLevel]);
 
   return (
     <div className="relative w-full h-full">
