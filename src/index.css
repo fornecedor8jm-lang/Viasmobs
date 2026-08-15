@@ -91,6 +91,7 @@
 .viasmobs-brand p, .mission-brief p, .command-label, .panel-title p { margin: 0; color: #9fb1c9; font-size: 9px; font-weight: 800; letter-spacing: .14em; }
 .viasmobs-brand h1 { margin: 1px 0 0; color: #f8fafc; font-size: 21px; font-weight: 800; letter-spacing: -.05em; }
 .viasmobs-header-actions { display: flex; align-items: center; gap: 7px; }
+.mobile-quick-actions { display: none; align-items: center; gap: 5px; }
 .economy-trigger, .icon-trigger { display: flex; align-items: center; justify-content: center; gap: 7px; color: #f8fafc; background: rgba(148, 163, 184, .12); border: 1px solid rgba(148, 163, 184, .18); transition: transform 160ms ease, background 160ms ease; }
 .economy-trigger { min-height: 38px; padding: 5px 9px; border-radius: 10px; }
 .economy-trigger:hover, .icon-trigger:hover { background: rgba(148, 163, 184, .21); }
@@ -139,7 +140,7 @@
 .more-menu .map-layer-switcher button { justify-content: center; padding: 7px 3px; color: #cbd5e1; border: 1px solid rgba(148, 163, 184, .16); border-radius: 7px; font-size: 9px; }
 .more-menu .map-layer-switcher button.active-layer { color: #172033; background: #f5b955; border-color: #f5b955; }
 .game-notice { position: absolute; left: 50%; bottom: 26px; max-width: min(500px, calc(100vw - 32px)); padding: 10px 14px; color: #f8fafc; background: rgba(30, 41, 59, .94); border: 1px solid rgba(245, 185, 85, .55); border-radius: 999px; box-shadow: 0 14px 35px rgba(2, 6, 23, .3); transform: translateX(-50%); font-size: 11px; font-weight: 700; text-align: center; pointer-events: none; }
-.tutorial-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(2, 6, 23, .38); backdrop-filter: blur(2.5px); }
+.tutorial-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(2, 6, 23, .24); backdrop-filter: blur(1px); }
 .tutorial-card { position: relative; width: min(470px, 100%); padding: 28px; border: 1.5px solid rgba(245, 185, 85, .7); border-radius: 22px; color: #e2e8f0; background: linear-gradient(145deg, rgba(17, 30, 51, 0.98), rgba(11, 20, 36, 0.98)); box-shadow: 0 24px 80px rgba(0, 0, 0, .55); }
 .mission-target-ring { animation: missionPulse 1.6s infinite ease-in-out; }
 @keyframes missionPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.35); opacity: 0.3; } }
@@ -177,6 +178,8 @@
   .economy-trigger small { display: none; }
   .economy-trigger strong { font-size: 12px; }
   .icon-trigger { width: 34px; height: 34px; }
+  .viasmobs-header-actions { gap: 5px; }
+  .mobile-quick-actions { display: flex; }
   .mission-brief { top: 69px; left: 10px; max-width: calc(100vw - 20px); padding: 8px 10px; }
   .mission-brief h2 { font-size: 11px; }
   .mission-brief span { font-size: 9px; }
@@ -190,4 +193,12 @@
   .tutorial-card h2 { font-size: 22px; }
   .rules-card { padding: 22px; }
   .rules-card h2 { font-size: 21px; }
+}
+
+@media (max-width: 390px) {
+  .viasmobs-brand h1 { font-size: 16px; }
+  .viasmobs-mark { width: 30px; height: 30px; }
+  .economy-trigger { min-height: 34px; padding: 4px 6px; }
+  .economy-trigger strong { font-size: 11px; }
+  .icon-trigger { width: 32px; height: 32px; }
 }

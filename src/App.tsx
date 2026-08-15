@@ -15,7 +15,6 @@ import { GoogleMapsRegionsSheet } from './components/GoogleMapsRegionsSheet';
 import { RulesModal } from './components/RulesModal';
 import { TutorialModal } from './components/TutorialModal';
 import { ViasmobsHUD, RoadFilterType } from './components/ViasmobsHUD';
-import { PermanentMissionCard } from './components/PermanentMissionCard';
 import { MapLegendModal } from './components/MapLegendModal';
 import { SettingsModal } from './components/SettingsModal';
 import { WorkFeedbackModal, WorkFeedbackData } from './components/WorkFeedbackModal';
@@ -95,6 +94,7 @@ export default function App() {
   const [legendOpen, setLegendOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [workFeedbackData, setWorkFeedbackData] = useState<WorkFeedbackData | null>(null);
+  const [pendingTutorialStep, setPendingTutorialStep] = useState<number | null>(null);
   const [roadFilter, setRoadFilter] = useState<RoadFilterType>('all');
   const [weatherRainActive, setWeatherRainActive] = useState(false);
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadSavedState('claimed_quests', []));
@@ -314,7 +314,7 @@ export default function App() {
     if (roadId === 'road_macapa_portogrande' && !firstWorkComplete) {
       setFirstWorkComplete(true);
       localStorage.setItem('viasmobs_first_work_complete_v1', 'true');
-      setTutorialStep(2);
+      setPendingTutorialStep(2);
       setNotice('Primeira obra concluída! Objetivo atualizado para desenvolver bairros em Macapá.');
     } else {
       setNotice('Obra concluída. A rota está mais rápida e o fluxo melhorou.');
@@ -440,7 +440,9 @@ export default function App() {
   };
 
   const handleResetGame = () => {
-    localStorage.clear();
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(STORAGE_KEY) || key.startsWith(LEGACY_STORAGE_KEY) || key.startsWith('viasmobs_'))
+      .forEach((key) => localStorage.removeItem(key));
     setCities(INITIAL_CITIES);
     setRoads(INITIAL_ROADS);
     setBossSectors(INITIAL_BOSS_SECTORS);
@@ -485,15 +487,21 @@ export default function App() {
   };
 
   const handleImportSave = (jsonStr: string) => {
-    const data = JSON.parse(jsonStr);
-    if (data.cities && data.roads && data.economy) {
+    try {
+      const data = JSON.parse(jsonStr);
+      if (!Array.isArray(data.cities) || !Array.isArray(data.roads) || !data.economy) {
+        setNotice('Arquivo de save inválido. Escolha um save do Viasmobs.');
+        return;
+      }
       setCities(data.cities);
       setRoads(data.roads);
-      if (data.bossSectors) setBossSectors(data.bossSectors);
-      if (data.regions) setRegions(data.regions);
+      if (Array.isArray(data.bossSectors)) setBossSectors(data.bossSectors);
+      if (Array.isArray(data.regions)) setRegions(data.regions);
       setEconomy(data.economy);
-      if (data.claimedQuestIds) setClaimedQuestIds(data.claimedQuestIds);
+      if (Array.isArray(data.claimedQuestIds)) setClaimedQuestIds(data.claimedQuestIds);
       setNotice('Progresso importado e restaurado com sucesso!');
+    } catch {
+      setNotice('Não foi possível ler este arquivo de save.');
     }
   };
 
@@ -561,23 +569,6 @@ export default function App() {
           roadFilter={roadFilter}
         />
       </main>
-
-      {/* Permanent Guided Mission Floating Card */}
-      {!activeTrip && (
-        <PermanentMissionCard
-          cities={cities}
-          roads={roads}
-          economy={economy}
-          currentRegion={currentRegion}
-          firstWorkComplete={firstWorkComplete}
-          onExecutePavingMission={startPavingTutorial}
-          onExecuteNeighborhoodMission={startNeighborhoodTutorial}
-          onOpenRoutes={showRoutes}
-          onOpenRegions={() => setActiveTab('regions')}
-          onClaimQuestReward={handleClaimQuestReward}
-          claimedQuestIds={claimedQuestIds}
-        />
-      )}
 
       {!activeTrip && (
         <ViasmobsHUD
@@ -722,10 +713,16 @@ export default function App() {
       {workFeedbackData && (
         <WorkFeedbackModal
           data={workFeedbackData}
-          onClose={() => setWorkFeedbackData(null)}
+          onClose={() => {
+            setWorkFeedbackData(null);
+            if (pendingTutorialStep !== null) {
+              setTutorialStep(pendingTutorialStep);
+              setTutorialOpen(true);
+              setPendingTutorialStep(null);
+            }
+          }}
         />
       )}
     </div>
   );
 }
-
