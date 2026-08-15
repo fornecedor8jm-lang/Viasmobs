@@ -58,8 +58,11 @@ export const GoogleMapsRegionsSheet: React.FC<GoogleMapsRegionsSheetProps> = ({
       <div className="p-4 overflow-y-auto space-y-3 text-xs">
         {regions.map((region) => {
           const regionCities = cities.filter(c => c.region === region.id);
-          const conqueredCities = regionCities.filter(c => c.influence >= 70 || c.dominated).length;
-          const canUnlock = !region.unlocked && region.phase === currentRegion.phase + 1 && conqueredCities >= 3;
+          const isNextRegion = region.phase === currentRegion.phase + 1;
+          const progressionCities = isNextRegion ? cities.filter(c => c.region === currentRegion.id) : regionCities;
+          const conqueredCities = progressionCities.filter(c => c.influence >= 70 || c.dominated).length;
+          const requiredCities = isNextRegion ? currentRegion.citiesRequiredToUnlockNext : region.citiesRequiredToUnlockNext;
+          const canUnlock = !region.unlocked && isNextRegion && conqueredCities >= requiredCities;
 
           return (
             <div
@@ -98,7 +101,7 @@ export const GoogleMapsRegionsSheet: React.FC<GoogleMapsRegionsSheetProps> = ({
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60 text-[11px]">
                 <span className="text-slate-500">
-                  Cidades Conquistadas: <b>{conqueredCities}/{regionCities.length}</b>
+                  {isNextRegion ? `Progresso em ${currentRegion.name}: ` : 'Cidades Conquistadas: '}<b>{conqueredCities}/{requiredCities}</b>
                 </span>
 
                 {!region.unlocked && (

@@ -224,7 +224,7 @@ export const GameMap: React.FC<GameMapProps> = ({
     if (!markersLayerRef.current || !mapInstanceRef.current) return;
     markersLayerRef.current.clearLayers();
 
-    cities.forEach(city => {
+    cities.filter((city) => city.unlocked || pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id).forEach(city => {
       const isPointA = pointA?.id === city.id;
       const isPointB = pointB?.id === city.id;
       const isSelected = selectedCity?.id === city.id;

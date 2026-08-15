@@ -28,12 +28,12 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
 }) => {
   const percent = Math.min(100, Math.round(activeTrip.progress * 100));
   const remainingKm = Math.max(0, Math.round(activeTrip.totalKm * (1 - activeTrip.progress)));
-  const remainingSecs = Math.max(0, Math.round((activeTrip.durationSeconds * (1 - activeTrip.progress))));
+  const remainingSecs = Math.max(0, Math.round(activeTrip.estimatedTimeSeconds * (1 - activeTrip.progress)));
   const simulatedRealMins = Math.round(remainingKm / 1.1);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[600] flex flex-col justify-between p-3 sm:p-4">
-      {/* Top Google Maps Navigation Banner (Iconic Green Banner) */}
+      {/* Faixa de navegação da viagem */}
       <div className="pointer-events-auto self-center w-full max-w-md bg-emerald-700 dark:bg-emerald-800 text-white rounded-3xl shadow-2xl p-4 flex items-center justify-between border-2 border-emerald-500 animate-in fade-in slide-in-from-top-4 duration-300">
         
         <div className="flex items-center gap-3.5">
@@ -80,7 +80,7 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
         </div>
       </div>
 
-      {/* Bottom Google Maps Navigation HUD */}
+      {/* Painel de progresso da viagem */}
       <div className="pointer-events-auto self-center w-full max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
         
         {/* Progress Bar */}

@@ -109,7 +109,7 @@ export const GoogleMapsPaveSheet: React.FC<GoogleMapsPaveSheetProps> = ({
               Obras & Pavimentação
             </h2>
             <p className="text-[11px] font-semibold text-amber-950">
-              Asfalte rodovias para reduzir o tempo no Google Maps
+              Melhore rodovias para reduzir o tempo das viagens da sua rede
             </p>
           </div>
         </div>
@@ -265,7 +265,7 @@ export const GoogleMapsPaveSheet: React.FC<GoogleMapsPaveSheetProps> = ({
               {/* Time saved tag */}
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/60 p-2 rounded-xl border border-emerald-300 dark:border-emerald-700/60">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Economia de tempo no Google Maps: <b>-{currentPaveInfo.timeSavedEst} minutos por viagem!</b></span>
+                <span>Economia de tempo estimada: <b>-{currentPaveInfo.timeSavedEst} minutos por viagem!</b></span>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-amber-200 dark:border-amber-800">

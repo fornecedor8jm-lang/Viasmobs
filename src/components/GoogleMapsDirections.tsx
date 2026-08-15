@@ -216,7 +216,7 @@ export const GoogleMapsDirections: React.FC<GoogleMapsDirectionsProps> = ({
         {/* If route found */}
         {pointA && pointB && routeRoads.length > 0 ? (
           <>
-            {/* Google Maps ETA & Route Summary Card */}
+              {/* Resumo de tempo e rota */}
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2">
               <div className="flex items-baseline justify-between">
                 <div className="flex items-baseline gap-2">
@@ -240,7 +240,7 @@ export const GoogleMapsDirections: React.FC<GoogleMapsDirectionsProps> = ({
               </div>
 
               <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Via {routeRoads.map(r => r.name).join(' &bull; ')}. Rota recomendada pelo Google Maps.
+                Via {routeRoads.map(r => r.name).join(' &bull; ')}. Rota calculada pela central Viasmobs.
               </p>
 
               {/* Game Scaled Time & Cargo Reward Strip */}
@@ -256,7 +256,7 @@ export const GoogleMapsDirections: React.FC<GoogleMapsDirectionsProps> = ({
               </div>
             </div>
 
-            {/* DIRECT PAVING ACTION (Opção para Asfaltar no Google Maps) */}
+            {/* Ação direta para melhorar a via antes da viagem */}
             {metrics.hasDirtSections && firstDirtRoad && (
               <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-400 dark:border-amber-600/70 space-y-2.5 shadow-md">
                 <div className="flex items-start gap-2">
@@ -317,7 +317,7 @@ export const GoogleMapsDirections: React.FC<GoogleMapsDirectionsProps> = ({
               </div>
             </div>
 
-            {/* Big Google Maps START NAVIGATION Button */}
+            {/* Ação principal para iniciar a viagem */}
             <button
               id="btn-start-google-nav"
               onClick={handleStart}
