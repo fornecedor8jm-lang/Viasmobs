@@ -28,7 +28,7 @@ export const GoogleMapsLiveNav: React.FC<GoogleMapsLiveNavProps> = ({
 }) => {
   const percent = Math.min(100, Math.round(activeTrip.progress * 100));
   const remainingKm = Math.max(0, Math.round(activeTrip.totalKm * (1 - activeTrip.progress)));
-  const remainingSecs = Math.max(0, Math.round((activeTrip.durationSeconds * (1 - activeTrip.progress))));
+  const remainingSecs = Math.max(0, Math.round(activeTrip.estimatedTimeSeconds * (1 - activeTrip.progress)));
   const simulatedRealMins = Math.round(remainingKm / 1.1);
 
   return (
