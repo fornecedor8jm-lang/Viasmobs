@@ -1,0 +1,6 @@
+{
+  "name": "Brasil Vias: Conexão Nacional",
+  "description": "Jogo de estratégia, exploração e gestão de infraestrutura rodoviária e urbana no mapa real do Brasil.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
