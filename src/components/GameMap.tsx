@@ -18,6 +18,9 @@ interface GameMapProps {
   onSetPointB: (city: City) => void;
   weatherRainActive: boolean;
   focusTarget?: { lat: number; lng: number; zoom: number } | null;
+  missionTargetRoadId?: string | null;
+  missionTargetCityId?: string | null;
+  roadFilter?: 'all' | 'dirt' | 'paved' | 'damaged' | 'tolls' | 'traffic';
 }
 
 const TILE_PROVIDERS = {
@@ -74,7 +77,10 @@ export const GameMap: React.FC<GameMapProps> = ({
   onSetPointA,
   onSetPointB,
   weatherRainActive,
-  focusTarget
+  focusTarget,
+  missionTargetRoadId,
+  missionTargetCityId,
+  roadFilter = 'all'
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -158,14 +164,22 @@ export const GameMap: React.FC<GameMapProps> = ({
     roadsLayerRef.current.clearLayers();
 
     roads.forEach(road => {
+      // Apply Road Filter
+      if (roadFilter === 'dirt' && road.type !== 'terra') return;
+      if (roadFilter === 'paved' && road.type === 'terra') return;
+      if (roadFilter === 'damaged' && road.condition >= 70) return;
+      if (roadFilter === 'tolls' && !road.hasToll) return;
+      if (roadFilter === 'traffic' && road.trafficLevel !== 'Intenso') return;
+
       const validCoords = sanitizeCoordinateList(road.coordinates);
       if (validCoords.length < 2) return;
 
       const isSelected = selectedRoad?.id === road.id;
+      const isTargetRoad = missionTargetRoadId === road.id;
       const isTransam = road.isTransamazonicaSector;
       const isTripRoad = activeTrip?.pathRoadIds.includes(road.id);
       const isOverview = zoomLevel < 7.5;
-      const visibleOnOverview = road.fromCityId === 'macapa' || road.fromCityId === 'manaus' || road.fromCityId === 'belem' || isTransam || isSelected || isTripRoad;
+      const visibleOnOverview = road.fromCityId === 'macapa' || road.fromCityId === 'manaus' || road.fromCityId === 'belem' || isTransam || isSelected || isTripRoad || isTargetRoad;
       if (isOverview && !visibleOnOverview) return;
 
       let color = '#78716c'; // terra/padrao
@@ -194,6 +208,19 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       if (isOverview) weight = Math.max(2, weight - 2);
 
+      // Mission target golden pulsing glow
+      if (isTargetRoad) {
+        const targetHalo = L.polyline(validCoords, {
+          color: '#fbbf24',
+          weight: weight + 10,
+          opacity: 0.8,
+          lineCap: 'round',
+          lineJoin: 'round',
+          className: 'mission-target-ring'
+        });
+        roadsLayerRef.current?.addLayer(targetHalo);
+      }
+
       // Outer glow for selected or transamazonica or trip route
       if (isSelected || isTransam || isTripRoad) {
         const glowPolyline = L.polyline(validCoords, {
@@ -207,9 +234,9 @@ export const GameMap: React.FC<GameMapProps> = ({
       }
 
       const polyline = L.polyline(validCoords, {
-        color,
-        weight,
-        opacity: 0.9,
+        color: isTargetRoad ? '#f59e0b' : color,
+        weight: isTargetRoad ? weight + 3 : weight,
+        opacity: 0.95,
         dashArray,
         lineCap: 'round',
         lineJoin: 'round'
@@ -225,6 +252,7 @@ export const GameMap: React.FC<GameMapProps> = ({
       const badgeIcon = road.type === 'terra' ? '🪵 Não Pavimentada (Terra)' : road.type === 'duplicada' ? '🛣️ Duplicada' : road.type === 'via_expressa' ? '⚡ Via Expressa' : '🛣️ Asfalto CBUQ';
       polyline.bindTooltip(
         `<div class="text-xs font-semibold p-1.5 min-w-[160px]">
+          ${isTargetRoad ? '<div class="text-amber-400 font-black text-[10px] uppercase mb-0.5 animate-pulse">🎯 ALVO DA MISSÃO PRINCIPAL</div>' : ''}
           <div class="text-amber-400 font-black text-sm">${road.name}</div>
           <div class="text-slate-200 mt-0.5">${badgeIcon} &bull; ${road.realKm} km</div>
           <div class="text-emerald-400 text-[11px] mt-1 font-mono">Velocidade Máx: ${road.maxSpeedKmH} km/h</div>
@@ -265,23 +293,24 @@ export const GameMap: React.FC<GameMapProps> = ({
         roadsLayerRef.current?.addLayer(scPoly);
       });
     });
-  }, [roads, selectedRoad, activeTrip, zoomLevel]);
+  }, [roads, selectedRoad, activeTrip, zoomLevel, missionTargetRoadId, roadFilter]);
 
   // Render City Markers (Google Maps Place Pins)
   useEffect(() => {
     if (!markersLayerRef.current || !mapInstanceRef.current) return;
     markersLayerRef.current.clearLayers();
 
-    const overviewHubs = new Set(['macapa', 'belem', 'manaus', 'manacapuru']);
+    const overviewHubs = new Set(['macapa', 'belem', 'manaus', 'manacapuru', 'santarem']);
     const isOverview = zoomLevel < 7.5;
     cities.filter((city) => {
       if (!city || !Number.isFinite(city.lat) || !Number.isFinite(city.lng)) return false;
-      const requiredForInteraction = pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id;
+      const requiredForInteraction = pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id || missionTargetCityId === city.id;
       return requiredForInteraction || (isOverview ? overviewHubs.has(city.id) : city.unlocked);
     }).forEach(city => {
       const isPointA = pointA?.id === city.id;
       const isPointB = pointB?.id === city.id;
       const isSelected = selectedCity?.id === city.id;
+      const isTargetCity = missionTargetCityId === city.id;
 
       // Color scheme based on unlock, domination, and selection
       let pinColor = 'bg-blue-600 text-white';
@@ -312,8 +341,9 @@ export const GameMap: React.FC<GameMapProps> = ({
       // Google Maps Place Marker Style
       const customHtml = `
         <div class="relative group cursor-pointer ${lockOpacity}">
-          ${city.unlocked ? '<div class="absolute -inset-1 rounded-full bg-blue-500/20 city-pulse"></div>' : ''}
-          <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full ${pinColor} shadow-xl border border-white/60 transition-transform transform group-hover:scale-110">
+          ${isTargetCity ? '<div class="absolute -inset-2.5 rounded-full bg-amber-400/50 mission-target-ring"></div>' : ''}
+          ${city.unlocked && !isTargetCity ? '<div class="absolute -inset-1 rounded-full bg-blue-500/20 city-pulse"></div>' : ''}
+          <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full ${pinColor} shadow-xl border ${isTargetCity ? 'border-amber-300 ring-4 ring-amber-400/60' : 'border-white/60'} transition-transform transform group-hover:scale-110">
             <span class="text-xs">${iconEmoji}</span>
             <span class="text-xs font-bold font-display whitespace-nowrap tracking-tight">${city.name}</span>
             ${isOverview ? '' : `<span class="text-[9px] px-1 rounded bg-black/30 font-mono">${city.state}</span>`}
@@ -347,7 +377,7 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       markersLayerRef.current?.addLayer(marker);
     });
-  }, [cities, pointA, pointB, selectedCity, zoomLevel]);
+  }, [cities, pointA, pointB, selectedCity, zoomLevel, missionTargetCityId]);
 
   // Render Animated Vehicles
   useEffect(() => {

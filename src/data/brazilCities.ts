@@ -435,6 +435,114 @@ export const INITIAL_CITIES: City[] = [
     ]
   },
   {
+    id: 'iranduba',
+    name: 'Iranduba',
+    state: 'AM',
+    region: 'NORTE',
+    lat: -3.2847,
+    lng: -60.1861,
+    population: 61000,
+    unlocked: true,
+    dominated: false,
+    influence: 30,
+    taxRevenuePerHour: 8500,
+    landmark: 'Ponte Rio Negro Jornalista Phelippe Daou',
+    description: 'Portal de entrada da Região Metropolitana de Manaus na margem direita do Rio Negro.',
+    security: { policeStations: 1, patrolCars: 3, cameras: 8, prfBases: 1, score: 50 },
+    neighborhoods: [
+      {
+        id: 'iranduba-centro',
+        name: 'Centro Histórico & Olaria',
+        type: 'Centro',
+        influencePercent: 35,
+        dominated: false,
+        indicators: { infrastructure: 45, traffic: 30, security: 50, health: 40, transport: 45, development: 45 },
+        upgrades: []
+      },
+      {
+        id: 'iranduba-cacau',
+        name: 'Distrito de Cacau Pirêra',
+        type: 'Distrito Industrial',
+        influencePercent: 25,
+        dominated: false,
+        indicators: { infrastructure: 40, traffic: 40, security: 45, health: 35, transport: 40, development: 40 },
+        upgrades: []
+      }
+    ]
+  },
+  {
+    id: 'parintins',
+    name: 'Parintins',
+    state: 'AM',
+    region: 'NORTE',
+    lat: -2.6289,
+    lng: -56.7358,
+    population: 115000,
+    unlocked: true,
+    dominated: false,
+    influence: 32,
+    taxRevenuePerHour: 10500,
+    landmark: 'Bumbódromo & Ilha Tupinambarana',
+    description: 'Capital folclórica do Boi-Bumbá no Baixo Amazonas e polo comercial fluvial.',
+    security: { policeStations: 2, patrolCars: 4, cameras: 12, prfBases: 0, score: 56 },
+    neighborhoods: [
+      {
+        id: 'parintins-centro',
+        name: 'Centro & Praça da Catedral',
+        type: 'Centro',
+        influencePercent: 40,
+        dominated: false,
+        indicators: { infrastructure: 50, traffic: 35, security: 55, health: 50, transport: 45, development: 50 },
+        upgrades: []
+      },
+      {
+        id: 'parintins-porto',
+        name: 'Orla Portuária do Amazonas',
+        type: 'Orla / Porto',
+        influencePercent: 30,
+        dominated: false,
+        indicators: { infrastructure: 40, traffic: 45, security: 45, health: 40, transport: 55, development: 45 },
+        upgrades: []
+      }
+    ]
+  },
+  {
+    id: 'boa_vista',
+    name: 'Boa Vista',
+    state: 'RR',
+    region: 'NORTE',
+    lat: 2.8235,
+    lng: -60.6758,
+    population: 419000,
+    unlocked: true,
+    dominated: false,
+    influence: 35,
+    taxRevenuePerHour: 22000,
+    landmark: 'Monumento aos Pioneiros & Complexo Ayrton Senna',
+    description: 'Capital de Roraima, única capital brasileira totalmente no Hemisfério Norte, ligada pela BR-174.',
+    security: { policeStations: 4, patrolCars: 10, cameras: 35, prfBases: 2, score: 62 },
+    neighborhoods: [
+      {
+        id: 'bv-centro',
+        name: 'Centro Cívico Planejado',
+        type: 'Centro',
+        influencePercent: 50,
+        dominated: false,
+        indicators: { infrastructure: 65, traffic: 45, security: 65, health: 60, transport: 60, development: 65 },
+        upgrades: []
+      },
+      {
+        id: 'bv-orla',
+        name: 'Orla Taumanan (Rio Branco)',
+        type: 'Zona Sul',
+        influencePercent: 35,
+        dominated: false,
+        indicators: { infrastructure: 55, traffic: 35, security: 60, health: 50, transport: 50, development: 55 },
+        upgrades: []
+      }
+    ]
+  },
+  {
     id: 'maraba',
     name: 'Marabá',
     state: 'PA',

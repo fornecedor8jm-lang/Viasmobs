@@ -352,6 +352,133 @@ export const INITIAL_ROADS: Road[] = [
       [-3.29972, -60.62056]
     ]
   },
+  {
+    id: 'road_manaus_iranduba',
+    name: 'Ponte Rio Negro / AM-070 (Manaus ➔ Iranduba)',
+    fromCityId: 'manaus',
+    toCityId: 'iranduba',
+    realKm: 30,
+    type: 'duplicada',
+    condition: 95,
+    trafficLevel: 'Moderado',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 2,
+    hasOverpass: true,
+    hasSmartTrafficLights: true,
+    maxSpeedKmH: 90,
+    shortcuts: [],
+    coordinates: [
+      [-3.1190, -60.0217],
+      [-3.1380, -60.0750],
+      [-3.2847, -60.1861]
+    ]
+  },
+  {
+    id: 'road_iranduba_manacapuru',
+    name: 'AM-070 Trecho Sul (Iranduba ➔ Manacapuru)',
+    fromCityId: 'iranduba',
+    toCityId: 'manacapuru',
+    realKm: 65,
+    type: 'asfalto_simples',
+    condition: 82,
+    trafficLevel: 'Moderado',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 2,
+    hasOverpass: false,
+    hasSmartTrafficLights: false,
+    maxSpeedKmH: 80,
+    shortcuts: [],
+    coordinates: [
+      [-3.2847, -60.1861],
+      [-3.2500, -60.4100],
+      [-3.29972, -60.62056]
+    ]
+  },
+  {
+    id: 'road_santarem_parintins',
+    name: 'Hidrovia Baixo Amazonas (Santarém ➔ Parintins)',
+    fromCityId: 'santarem',
+    toCityId: 'parintins',
+    realKm: 270,
+    type: 'asfalto_simples',
+    condition: 88,
+    trafficLevel: 'Livre',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 1,
+    hasOverpass: false,
+    hasSmartTrafficLights: false,
+    maxSpeedKmH: 75,
+    shortcuts: [],
+    coordinates: [
+      [-2.4431, -54.7083],
+      [-2.3500, -55.8000],
+      [-2.6289, -56.7358]
+    ]
+  },
+  {
+    id: 'road_parintins_manaus',
+    name: 'Hidrovia Médio Amazonas (Parintins ➔ Manaus)',
+    fromCityId: 'parintins',
+    toCityId: 'manaus',
+    realKm: 380,
+    type: 'asfalto_simples',
+    condition: 88,
+    trafficLevel: 'Livre',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 2,
+    hasOverpass: true,
+    hasSmartTrafficLights: false,
+    maxSpeedKmH: 75,
+    shortcuts: [],
+    coordinates: [
+      [-2.6289, -56.7358],
+      [-3.1300, -58.4400],
+      [-3.1190, -60.0217]
+    ]
+  },
+  {
+    id: 'road_manaus_boavista',
+    name: 'BR-174 Rodovia Manaus–Boa Vista (Manaus ➔ Boa Vista)',
+    fromCityId: 'manaus',
+    toCityId: 'boa_vista',
+    realKm: 785,
+    type: 'asfalto_simples',
+    condition: 75,
+    trafficLevel: 'Moderado',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 16,
+    hasOverpass: true,
+    hasSmartTrafficLights: false,
+    maxSpeedKmH: 80,
+    shortcuts: [
+      {
+        id: 'sc_br174_waimiri',
+        name: 'Contorno Viário & Asfalto Polimérico da BR-174',
+        cost: 65000,
+        timeSavingsPercent: 30,
+        built: false,
+        description: 'Pavimentação de alta durabilidade atravessando a savana de Roraima.',
+        coordinates: [[-3.1190, -60.0217], [0.5000, -60.3000], [2.8235, -60.6758]]
+      }
+    ],
+    coordinates: [
+      [-3.1190, -60.0217],
+      [-2.0000, -60.0500], // Presidente Figueiredo
+      [-0.5000, -60.1000], // Waimiri Atroari
+      [1.0000, -60.4000],  // Rorainópolis / Caracaraí
+      [2.8235, -60.6758]   // Boa Vista
+    ]
+  },
 
   // =================== NORDESTE ROTAS ===================
   {

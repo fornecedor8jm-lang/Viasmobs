@@ -139,8 +139,11 @@
 .more-menu .map-layer-switcher button { justify-content: center; padding: 7px 3px; color: #cbd5e1; border: 1px solid rgba(148, 163, 184, .16); border-radius: 7px; font-size: 9px; }
 .more-menu .map-layer-switcher button.active-layer { color: #172033; background: #f5b955; border-color: #f5b955; }
 .game-notice { position: absolute; left: 50%; bottom: 26px; max-width: min(500px, calc(100vw - 32px)); padding: 10px 14px; color: #f8fafc; background: rgba(30, 41, 59, .94); border: 1px solid rgba(245, 185, 85, .55); border-radius: 999px; box-shadow: 0 14px 35px rgba(2, 6, 23, .3); transform: translateX(-50%); font-size: 11px; font-weight: 700; text-align: center; pointer-events: none; }
-.tutorial-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(2, 6, 23, .7); backdrop-filter: blur(6px); }
-.tutorial-card { position: relative; width: min(470px, 100%); padding: 28px; border: 1px solid rgba(245, 185, 85, .42); border-radius: 22px; color: #e2e8f0; background: linear-gradient(145deg, #111e33, #0b1424); box-shadow: 0 28px 90px rgba(0, 0, 0, .48); }
+.tutorial-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(2, 6, 23, .38); backdrop-filter: blur(2.5px); }
+.tutorial-card { position: relative; width: min(470px, 100%); padding: 28px; border: 1.5px solid rgba(245, 185, 85, .7); border-radius: 22px; color: #e2e8f0; background: linear-gradient(145deg, rgba(17, 30, 51, 0.98), rgba(11, 20, 36, 0.98)); box-shadow: 0 24px 80px rgba(0, 0, 0, .55); }
+.mission-target-ring { animation: missionPulse 1.6s infinite ease-in-out; }
+@keyframes missionPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.35); opacity: 0.3; } }
+
 .tutorial-close { position: absolute; top: 13px; right: 13px; display: grid; place-items: center; width: 32px; height: 32px; color: #cbd5e1; background: rgba(148, 163, 184, .12); border-radius: 9px; }
 .tutorial-icon { display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: 18px; color: #172033; background: #f5b955; border-radius: 15px; }
 .tutorial-step { margin: 0; color: #f5b955; font-size: 10px; font-weight: 800; letter-spacing: .14em; }

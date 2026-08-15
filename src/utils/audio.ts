@@ -149,5 +149,17 @@ export const playSound = {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.5);
+  },
+
+  build: () => {
+    playSound.pave();
+  },
+
+  fanfare: () => {
+    playSound.dominate();
+  },
+
+  horn: () => {
+    playSound.travelStart();
   }
 };

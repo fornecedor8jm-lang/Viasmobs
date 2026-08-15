@@ -176,54 +176,97 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
         )}
 
         {activeTab === 'neighborhoods' && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between pb-1">
-              <span className="font-bold text-slate-500 text-[11px] uppercase tracking-wider">
-                Bairros Estratégicos
-              </span>
-              <span className="text-[10px] text-slate-400">
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">
+                  Bairros Estratégicos ({city.neighborhoods.filter(n => n.influencePercent >= 100).length}/{city.neighborhoods.length} Dominados)
+                </span>
+                <p className="text-[10px] text-amber-500 font-semibold">
+                  Domine 100% de cada bairro para turbinar a arrecadação da cidade!
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 font-mono">
                 Custo: R$ {neighborhoodUpgradeCost.toLocaleString('pt-BR')}
               </span>
             </div>
 
-            {city.neighborhoods.map(nb => (
-              <div
-                key={nb.id}
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{nb.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
-                      {nb.type}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
-                    <span>Infra: <b>{nb.indicators.infrastructure}%</b></span>
-                    <span>Influência: <b>{nb.influencePercent}%</b></span>
-                  </div>
-                </div>
+            {city.neighborhoods.map(nb => {
+              const isDominated = nb.influencePercent >= 100;
+              const remainingToDominate = Math.max(0, 100 - nb.influencePercent);
 
-                <button
-                  onClick={() => {
-                    if (playerMoney >= neighborhoodUpgradeCost && nb.influencePercent < 100) {
-                      playSound.coin();
-                      onUpgradeNeighborhood(city.id, nb.id, neighborhoodUpgradeCost);
-                    }
-                  }}
-                  disabled={playerMoney < neighborhoodUpgradeCost || nb.influencePercent >= 100}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs shadow transition ${
-                    nb.influencePercent >= 100
-                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
-                      : playerMoney >= neighborhoodUpgradeCost
-                      ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
-                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+              return (
+                <div
+                  key={nb.id}
+                  className={`p-3 rounded-2xl border transition-all ${
+                    isDominated
+                      ? 'bg-emerald-500/10 border-emerald-500/40 dark:bg-emerald-950/30'
+                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80'
                   }`}
                 >
-                  {nb.influencePercent >= 100 ? '✅ 100%' : 'Desenvolver'}
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">{nb.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
+                          {nb.type}
+                        </span>
+                      </div>
+
+                      {/* Explicit Domination Status Rule */}
+                      <div className="mt-1 font-mono text-[11px]">
+                        {isDominated ? (
+                          <span className="text-emerald-500 font-black flex items-center gap-1">
+                            👑 100% Dominado &bull; Bônus de receita ativo!
+                          </span>
+                        ) : (
+                          <span className="text-amber-500 font-bold">
+                            {nb.influencePercent}% de influência &mdash; <b className="text-slate-700 dark:text-slate-200">faltam {remainingToDominate}%</b> para dominar
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (playerMoney >= neighborhoodUpgradeCost && !isDominated) {
+                          playSound.coin();
+                          onUpgradeNeighborhood(city.id, nb.id, neighborhoodUpgradeCost);
+                        }
+                      }}
+                      disabled={playerMoney < neighborhoodUpgradeCost || isDominated}
+                      className={`px-3 py-2 rounded-xl font-black text-xs shadow transition active:scale-95 shrink-0 ${
+                        isDominated
+                          ? 'bg-emerald-500 text-slate-950 cursor-default'
+                          : playerMoney >= neighborhoodUpgradeCost
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {isDominated ? '👑 Dominado' : 'Desenvolver'}
+                    </button>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-2">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isDominated
+                          ? 'bg-emerald-500'
+                          : 'bg-gradient-to-r from-amber-400 to-amber-500'
+                      }`}
+                      style={{ width: `${Math.min(100, nb.influencePercent)}%` }}
+                    />
+                  </div>
+
+                  {/* Explicit Rewards Information */}
+                  <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                    <span>🎁 Recompensa: +R$ 3.500/h impostos &bull; +Indústria</span>
+                    <span>Infraestrutura: <b>{nb.indicators.infrastructure}%</b></span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
