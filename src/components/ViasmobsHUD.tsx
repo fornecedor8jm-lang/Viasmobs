@@ -14,6 +14,7 @@ import {
   Layers,
   Map,
   Route,
+  Satellite,
   Settings,
   Sparkles,
   Trophy,
@@ -93,7 +94,15 @@ export function ViasmobsHUD({
           </button>
           <div className="mobile-quick-actions" aria-label="Atalhos móveis">
             <button className="icon-trigger" type="button" onClick={onOpenTutorial} title="Tutorial" aria-label="Abrir tutorial"><BookOpen size={17} /></button>
-            <button className="icon-trigger" type="button" onClick={onOpenSettings} title="Configurações" aria-label="Abrir configurações"><Settings size={17} /></button>
+            <button
+              className={tileLayer === 'satellite' ? 'icon-trigger active-mobile-layer' : 'icon-trigger'}
+              type="button"
+              onClick={() => onChangeTileLayer(tileLayer === 'satellite' ? 'terrain' : 'satellite')}
+              title={tileLayer === 'satellite' ? 'Voltar para terreno' : 'Abrir mapa satélite'}
+              aria-label={tileLayer === 'satellite' ? 'Voltar para mapa de terreno' : 'Abrir mapa satélite'}
+            >
+              <Satellite size={17} />
+            </button>
           </div>
           <button className="icon-trigger" type="button" onClick={() => setShowMore((value) => !value)} title="Abrir menu"><Map size={18} /></button>
         </div>
