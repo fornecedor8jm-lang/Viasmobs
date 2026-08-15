@@ -18,7 +18,7 @@ import {
   Siren,
   Wrench
 } from 'lucide-react';
-import { allRecoveryObjectivesComplete, getCityCrisisLevel, getLeadRival, getRecoveryObjectives } from '../utils/cityPolitics';
+import { allDefenseMissionObjectivesComplete, allRecoveryObjectivesComplete, getCityCrisisLevel, getDefenseMissionObjectives, getLeadRival, getRecoveryObjectives } from '../utils/cityPolitics';
 
 interface GoogleMapsCitySheetProps {
   city: City;
@@ -31,6 +31,9 @@ interface GoogleMapsCitySheetProps {
   onUpgradeSecurity: (cityId: string, upgradeType: 'station' | 'patrol' | 'camera' | 'prf', cost: number) => void;
   onReclaimAdministration: (cityId: string) => void;
   onStartPoliticalMission: (cityId: string) => void;
+  onCompletePoliticalMission: (cityId: string) => void;
+  politicalMissionActive: boolean;
+  politicalMissionCompleted: boolean;
   initialTab?: 'overview' | 'neighborhoods' | 'security' | 'population';
 }
 
@@ -45,6 +48,9 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
   onUpgradeSecurity,
   onReclaimAdministration,
   onStartPoliticalMission,
+  onCompletePoliticalMission,
+  politicalMissionActive,
+  politicalMissionCompleted,
   initialTab = 'overview'
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'neighborhoods' | 'security' | 'population'>(initialTab);
@@ -54,6 +60,8 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
   const crisisLevel = getCityCrisisLevel(city);
   const leadRival = getLeadRival(city);
   const recoveryObjectives = getRecoveryObjectives(city, roads);
+  const defenseObjectives = getDefenseMissionObjectives(city, roads);
+  const defenseObjectivesDone = Object.values(defenseObjectives).filter(Boolean).length;
   const administrationTaken = crisisLevel === 'taken';
   const approval = city.politics?.approval ?? 60;
   const populationMood = approval >= 80
@@ -392,13 +400,41 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
               <div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-rose-500 rounded-full" style={{ width: `${leadRival?.support ?? 0}%` }} /></div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => onStartPoliticalMission(city.id)}
-              className={`w-full py-3 rounded-xl font-black text-xs shadow transition active:scale-[.98] ${administrationTaken ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-slate-900 hover:bg-slate-800 dark:bg-rose-600 dark:hover:bg-rose-500 text-white'}`}
-            >
-              {administrationTaken ? 'Iniciar Missão de Reconquista' : 'Iniciar Missão do Golpe'}
-            </button>
+            {!politicalMissionActive && !politicalMissionCompleted && (
+              <button
+                type="button"
+                onClick={() => onStartPoliticalMission(city.id)}
+                className={`w-full py-3 rounded-xl font-black text-xs shadow transition active:scale-[.98] ${administrationTaken ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-slate-900 hover:bg-slate-800 dark:bg-rose-600 dark:hover:bg-rose-500 text-white'}`}
+              >
+                {administrationTaken ? 'Iniciar Missão de Reconquista' : 'Iniciar Missão do Golpe'}
+              </button>
+            )}
+
+            {politicalMissionCompleted && !administrationTaken && (
+              <div className="p-3 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 text-center font-black text-xs">
+                <CheckCircle2 className="inline w-4 h-4 mr-1.5 -mt-0.5" /> Missão concluída: cidade defendida.
+              </div>
+            )}
+
+            {politicalMissionActive && !administrationTaken && (
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-rose-500/45 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-black text-rose-300 text-xs">Missão do Golpe em andamento</p>
+                    <p className="mt-0.5 text-[10px] text-slate-300">Complete os quatro objetivos antes que o rival tome a cidade.</p>
+                  </div>
+                  <span className="rounded-lg bg-rose-500/15 px-2 py-1 text-[10px] font-black text-rose-200">{defenseObjectivesDone}/4</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-500 transition-all" style={{ width: `${defenseObjectivesDone * 25}%` }} /></div>
+                <div className="grid gap-1.5 text-[10px] text-slate-200">
+                  <span className={defenseObjectives.routeReady ? 'text-emerald-400' : ''}><Wrench className="inline w-3.5 h-3.5 mr-1" />{defenseObjectives.routeReady ? 'Concluído' : 'Pendente'}: rota confiável até a cidade</span>
+                  <span className={defenseObjectives.neighborhoodReady ? 'text-emerald-400' : ''}><Building2 className="inline w-3.5 h-3.5 mr-1" />{defenseObjectives.neighborhoodReady ? 'Concluído' : 'Pendente'}: bairro com 75% de influência</span>
+                  <span className={defenseObjectives.securityReady ? 'text-emerald-400' : ''}><ShieldCheck className="inline w-3.5 h-3.5 mr-1" />{defenseObjectives.securityReady ? 'Concluído' : 'Pendente'}: segurança acima de 60%</span>
+                  <span className={defenseObjectives.approvalReady ? 'text-emerald-400' : ''}><Users className="inline w-3.5 h-3.5 mr-1" />{defenseObjectives.approvalReady ? 'Concluído' : 'Pendente'}: apoio popular acima de 60%</span>
+                </div>
+                <button type="button" disabled={!allDefenseMissionObjectivesComplete(defenseObjectives)} onClick={() => onCompletePoliticalMission(city.id)} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed">Concluir Missão · Receber R$ 22.000</button>
+              </div>
+            )}
 
             {administrationTaken && (
               <div className="p-3.5 rounded-2xl bg-rose-950/15 border border-rose-500/40 space-y-2">

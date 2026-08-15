@@ -10,6 +10,9 @@ interface SettingsModalProps {
   onExportSave: () => void;
   onImportSave: (jsonStr: string) => void;
   onManualSave: () => void;
+  onReturnToStartScreen: () => void;
+  hasSavedGame: boolean;
+  onContinueGame: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -17,7 +20,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetGame,
   onExportSave,
   onImportSave,
-  onManualSave
+  onManualSave,
+  onReturnToStartScreen,
+  hasSavedGame,
+  onContinueGame
 }) => {
   const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
   const [importInput, setImportInput] = useState('');
@@ -57,8 +63,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ⚙️
             </div>
             <div>
-              <h2 className="text-lg font-black font-display text-white">Configurações & Save</h2>
-              <p className="text-xs text-indigo-300 font-semibold">Gerenciamento de progresso e opções</p>
+              <h2 className="text-lg font-black font-display text-white">Configurações</h2>
+              <p className="text-xs text-indigo-300 font-semibold">Áudio, progresso e jogo</p>
             </div>
           </div>
           <button 
@@ -89,6 +95,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               {soundOn ? 'Ativado' : 'Mudo'}
             </button>
+          </div>
+
+          {/* Jogo */}
+          <div className="p-3.5 rounded-2xl bg-indigo-950/25 border border-indigo-500/30 space-y-3">
+            <div>
+              <b className="text-indigo-200 text-xs">Jogo</b>
+              <p className="text-[10px] text-slate-400">Volte ao menu sem perder sua campanha ou comece outra partida.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => { onContinueGame(); onClose(); }} className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs disabled:opacity-45" disabled={!hasSavedGame}>
+                Continuar
+              </button>
+              <button onClick={onReturnToStartScreen} className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-bold text-xs">
+                Menu Inicial
+              </button>
+            </div>
           </div>
 
           {/* Salvamento Local */}
@@ -153,12 +175,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* Reiniciar Jogo */}
+          {/* Novo Jogo */}
           <div className="p-3.5 rounded-2xl bg-rose-950/20 border border-rose-800/40">
             {!confirmReset ? (
               <div className="flex items-center justify-between">
                 <div>
-                  <b className="text-rose-300 text-xs">Reiniciar Campanha</b>
+                  <b className="text-rose-300 text-xs">Novo Jogo</b>
                   <p className="text-[10px] text-slate-400">Começar do zero no Amapá</p>
                 </div>
                 <button

@@ -18,6 +18,10 @@ export interface RecoveryObjectives {
   securityReady: boolean;
 }
 
+export interface DefenseMissionObjectives extends RecoveryObjectives {
+  approvalReady: boolean;
+}
+
 export const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 export function createCityPolitics(city: City, index: number): CityPolitics {
@@ -64,6 +68,18 @@ export function getRecoveryObjectives(city: City, roads: Road[]): RecoveryObject
 
 export function allRecoveryObjectivesComplete(objectives: RecoveryObjectives) {
   return objectives.routeReady && objectives.neighborhoodReady && objectives.securityReady;
+}
+
+export function getDefenseMissionObjectives(city: City, roads: Road[]): DefenseMissionObjectives {
+  const recovery = getRecoveryObjectives(city, roads);
+  return {
+    ...recovery,
+    approvalReady: (city.politics?.approval ?? 0) >= 60,
+  };
+}
+
+export function allDefenseMissionObjectivesComplete(objectives: DefenseMissionObjectives) {
+  return objectives.routeReady && objectives.neighborhoodReady && objectives.securityReady && objectives.approvalReady;
 }
 
 export function adjustCityApproval(city: City, change: number): City {

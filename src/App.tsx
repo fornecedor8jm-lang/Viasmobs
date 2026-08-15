@@ -20,7 +20,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { StartScreen } from './components/StartScreen';
 import { WorkFeedbackModal, WorkFeedbackData } from './components/WorkFeedbackModal';
 import { playSound } from './utils/audio';
-import { adjustCityApproval, allRecoveryObjectivesComplete, ensureCityPolitics, getRecoveryObjectives, progressCityPolitics } from './utils/cityPolitics';
+import { adjustCityApproval, allDefenseMissionObjectivesComplete, allRecoveryObjectivesComplete, ensureCityPolitics, getDefenseMissionObjectives, getRecoveryObjectives, progressCityPolitics } from './utils/cityPolitics';
 
 const STORAGE_KEY = 'viasmobs_game_state_v2';
 const LEGACY_STORAGE_KEY = 'brasil_vias_game_state_v1';
@@ -115,7 +115,8 @@ export default function App() {
   const [weatherRainActive, setWeatherRainActive] = useState(false);
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadSavedState('claimed_quests', []));
   const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security' | 'population'>('overview');
-  const [politicalMissionCityId, setPoliticalMissionCityId] = useState<string | null>(null);
+  const [politicalMissionCityId, setPoliticalMissionCityId] = useState<string | null>(() => loadSavedState<string | null>('political_mission_city', null));
+  const [completedPoliticalMissionCityIds, setCompletedPoliticalMissionCityIds] = useState<string[]>(() => loadSavedState<string[]>('completed_political_missions', []));
   const economyRef = useRef(economy);
   const takenCityIdsRef = useRef<Set<string>>(new Set());
   const [tileLayer, setTileLayer] = useState<TileLayerType>('terrain');
@@ -153,8 +154,10 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_regions`, JSON.stringify(regions));
     localStorage.setItem(`${STORAGE_KEY}_economy`, JSON.stringify(economy));
     localStorage.setItem(`${STORAGE_KEY}_claimed_quests`, JSON.stringify(claimedQuestIds));
+    localStorage.setItem(`${STORAGE_KEY}_political_mission_city`, JSON.stringify(politicalMissionCityId));
+    localStorage.setItem(`${STORAGE_KEY}_completed_political_missions`, JSON.stringify(completedPoliticalMissionCityIds));
     setHasSavedGame(true);
-  }, [bossSectors, cities, economy, regions, roads, claimedQuestIds, sessionStarted]);
+  }, [bossSectors, cities, economy, regions, roads, claimedQuestIds, politicalMissionCityId, completedPoliticalMissionCityIds, sessionStarted]);
 
   useEffect(() => {
     if (!sessionStarted) return;
@@ -518,6 +521,7 @@ export default function App() {
     setWeatherRainActive(false);
     setTileLayer('terrain');
     setPoliticalMissionCityId(null);
+    setCompletedPoliticalMissionCityIds([]);
     setClaimedQuestIds([]);
     setFirstWorkComplete(false);
     setTutorialStep(0);
@@ -570,8 +574,52 @@ export default function App() {
     setFocusTarget({ lat: targetCity.lat, lng: targetCity.lng, zoom: 10 });
     setNotice(targetCity.politics?.administration === 'rival'
       ? `Missão de reconquista iniciada em ${targetCity.name}. Cumpra os compromissos da aba População.`
-      : `Missão de defesa iniciada em ${targetCity.name}. Mantenha o apoio da população acima de 50%.`);
+      : `Missão de defesa iniciada em ${targetCity.name}. Entregue os quatro objetivos da aba População para impedir o golpe.`);
   }, [cities]);
+
+  const handleCompletePoliticalMission = useCallback((cityId: string) => {
+    const targetCity = cities.find((city) => city.id === cityId);
+    if (!targetCity || politicalMissionCityId !== cityId) return;
+    if (completedPoliticalMissionCityIds.includes(cityId)) {
+      setNotice('Esta cidade já recebeu a recompensa da missão de defesa.');
+      return;
+    }
+    if (targetCity.politics?.administration === 'rival') {
+      handleReclaimAdministration(cityId);
+      return;
+    }
+    const objectives = getDefenseMissionObjectives(targetCity, roads);
+    if (!allDefenseMissionObjectivesComplete(objectives)) {
+      setNotice('A missão ainda não está concluída. Garanta rota confiável, bairro desenvolvido, segurança e 60% de apoio popular.');
+      return;
+    }
+    const reward = 22000;
+    playSound.fanfare();
+    setCities((previous) => previous.map((city) => city.id === cityId ? adjustCityApproval(city, 12) : city));
+    setEconomy((previous) => ({ ...previous, money: previous.money + reward, totalEarned: previous.totalEarned + reward }));
+    setCompletedPoliticalMissionCityIds((previous) => previous.includes(cityId) ? previous : [...previous, cityId]);
+    setPoliticalMissionCityId(null);
+    setNotice(`Missão concluída em ${targetCity.name}. O golpe foi evitado e você recebeu R$ ${reward.toLocaleString('pt-BR')}.`);
+  }, [cities, roads, politicalMissionCityId, completedPoliticalMissionCityIds, handleReclaimAdministration]);
+
+  const handleReturnToStartScreen = useCallback(() => {
+    localStorage.setItem(`${STORAGE_KEY}_cities`, JSON.stringify(cities));
+    localStorage.setItem(`${STORAGE_KEY}_roads`, JSON.stringify(roads));
+    localStorage.setItem(`${STORAGE_KEY}_boss`, JSON.stringify(bossSectors));
+    localStorage.setItem(`${STORAGE_KEY}_regions`, JSON.stringify(regions));
+    localStorage.setItem(`${STORAGE_KEY}_economy`, JSON.stringify(economy));
+    localStorage.setItem(`${STORAGE_KEY}_claimed_quests`, JSON.stringify(claimedQuestIds));
+    localStorage.setItem(`${STORAGE_KEY}_political_mission_city`, JSON.stringify(politicalMissionCityId));
+    localStorage.setItem(`${STORAGE_KEY}_completed_political_missions`, JSON.stringify(completedPoliticalMissionCityIds));
+    setHasSavedGame(true);
+    setSettingsOpen(false);
+    setSelectedCity(null);
+    setSelectedRoad(null);
+    setActiveTab('explore');
+    setFocusTarget(null);
+    setNotice(null);
+    setSessionStarted(false);
+  }, [bossSectors, cities, claimedQuestIds, completedPoliticalMissionCityIds, economy, politicalMissionCityId, regions, roads]);
 
   const handleExportSave = () => {
     const saveData = {
@@ -764,6 +812,9 @@ export default function App() {
           onUpgradeSecurity={handleUpgradeSecurity}
           onReclaimAdministration={handleReclaimAdministration}
           onStartPoliticalMission={handleStartPoliticalMission}
+          onCompletePoliticalMission={handleCompletePoliticalMission}
+          politicalMissionActive={politicalMissionCityId === selectedCity.id}
+          politicalMissionCompleted={completedPoliticalMissionCityIds.includes(selectedCity.id)}
         />
       )}
 
@@ -819,6 +870,9 @@ export default function App() {
             localStorage.setItem(`${STORAGE_KEY}_roads`, JSON.stringify(roads));
             localStorage.setItem(`${STORAGE_KEY}_economy`, JSON.stringify(economy));
           }}
+          onReturnToStartScreen={handleReturnToStartScreen}
+          hasSavedGame={hasSavedGame}
+          onContinueGame={handleContinueGame}
         />
       )}
 
