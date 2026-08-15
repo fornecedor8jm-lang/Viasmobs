@@ -46,6 +46,7 @@ interface ViasmobsHUDProps {
   onChangeRoadFilter: (filter: RoadFilterType) => void;
   weatherRainActive: boolean;
   onToggleWeather: () => void;
+  activePoliticalMissionCityId: string | null;
 }
 
 const money = (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}`;
@@ -70,6 +71,7 @@ export function ViasmobsHUD({
   onChangeRoadFilter,
   weatherRainActive,
   onToggleWeather,
+  activePoliticalMissionCityId,
 }: ViasmobsHUDProps) {
   const [showEconomy, setShowEconomy] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -79,8 +81,9 @@ export function ViasmobsHUD({
   const roadsNeedingWork = roads.filter((road) => road.type === 'terra' || road.condition < 65).length;
   const takenCities = cities.filter((city) => getCityCrisisLevel(city) === 'taken');
   const criticalCities = cities.filter((city) => getCityCrisisLevel(city) === 'critical');
-  const missionCity = takenCities[0] ?? criticalCities[0];
-  const missionIsReclaim = Boolean(takenCities[0]);
+  const selectedMissionCity = cities.find((city) => city.id === activePoliticalMissionCityId);
+  const missionCity = selectedMissionCity ?? takenCities[0] ?? criticalCities[0];
+  const missionIsReclaim = missionCity?.politics?.administration === 'rival';
 
   return (
     <div className="viasmobs-hud" aria-label="Central de comando Viasmobs">
@@ -117,7 +120,7 @@ export function ViasmobsHUD({
       <section className="mission-brief">
         <div className="mission-icon">{missionCity ? <Siren size={20} /> : <FlagTriangleRight size={20} />}</div>
         <div>
-          <p>{missionCity ? missionIsReclaim ? 'MISSÃO URGENTE · RECONQUISTA' : 'MISSÃO URGENTE · EVITAR GOLPE' : `OBJETIVO ATUAL · FASE ${currentRegion.phase}`}</p>
+          <p>{missionCity ? missionIsReclaim ? 'MISSÃO URGENTE · RECONQUISTA' : selectedMissionCity?.id === missionCity.id ? 'MISSÃO ATIVA · DEFESA' : 'MISSÃO URGENTE · EVITAR GOLPE' : `OBJETIVO ATUAL · FASE ${currentRegion.phase}`}</p>
           <h2>{missionCity ? missionIsReclaim ? `Recupere ${missionCity.name}` : `Defenda ${missionCity.name}` : `Rede do ${currentRegion.name}`}</h2>
           <span>{missionCity
             ? missionIsReclaim

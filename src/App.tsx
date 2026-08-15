@@ -114,7 +114,8 @@ export default function App() {
   const [roadFilter, setRoadFilter] = useState<RoadFilterType>('all');
   const [weatherRainActive, setWeatherRainActive] = useState(false);
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadSavedState('claimed_quests', []));
-  const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security'>('overview');
+  const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security' | 'population'>('overview');
+  const [politicalMissionCityId, setPoliticalMissionCityId] = useState<string | null>(null);
   const economyRef = useRef(economy);
   const takenCityIdsRef = useRef<Set<string>>(new Set());
   const [tileLayer, setTileLayer] = useState<TileLayerType>('terrain');
@@ -138,6 +139,7 @@ export default function App() {
   } else if (!isMacapaDominated) {
     missionTargetCityId = 'macapa';
   }
+  if (politicalMissionCityId) missionTargetCityId = politicalMissionCityId;
 
   useEffect(() => {
     economyRef.current = economy;
@@ -515,6 +517,7 @@ export default function App() {
     setRoadFilter('all');
     setWeatherRainActive(false);
     setTileLayer('terrain');
+    setPoliticalMissionCityId(null);
     setClaimedQuestIds([]);
     setFirstWorkComplete(false);
     setTutorialStep(0);
@@ -559,6 +562,16 @@ export default function App() {
     }));
     setNotice(`${targetCity.name} foi reconquistada. A receita municipal e a administração voltaram a funcionar.`);
   }, [cities, roads]);
+
+  const handleStartPoliticalMission = useCallback((cityId: string) => {
+    const targetCity = cities.find((city) => city.id === cityId);
+    if (!targetCity) return;
+    setPoliticalMissionCityId(cityId);
+    setFocusTarget({ lat: targetCity.lat, lng: targetCity.lng, zoom: 10 });
+    setNotice(targetCity.politics?.administration === 'rival'
+      ? `Missão de reconquista iniciada em ${targetCity.name}. Cumpra os compromissos da aba População.`
+      : `Missão de defesa iniciada em ${targetCity.name}. Mantenha o apoio da população acima de 50%.`);
+  }, [cities]);
 
   const handleExportSave = () => {
     const saveData = {
@@ -686,6 +699,7 @@ export default function App() {
           onChangeRoadFilter={setRoadFilter}
           weatherRainActive={weatherRainActive}
           onToggleWeather={() => setWeatherRainActive(prev => !prev)}
+          activePoliticalMissionCityId={politicalMissionCityId}
         />
       )}
 
@@ -749,6 +763,7 @@ export default function App() {
           onUpgradeNeighborhood={handleUpgradeNeighborhood}
           onUpgradeSecurity={handleUpgradeSecurity}
           onReclaimAdministration={handleReclaimAdministration}
+          onStartPoliticalMission={handleStartPoliticalMission}
         />
       )}
 

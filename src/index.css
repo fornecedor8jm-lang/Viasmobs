@@ -213,6 +213,8 @@
   .mission-brief span { font-size: 9px; }
   .command-card { right: 10px; bottom: 13px; left: 10px; width: auto; padding: 12px; border-radius: 13px; }
   .leaflet-bottom.leaflet-right { bottom: 118px; }
+  .leaflet-top.leaflet-left .leaflet-control-attribution { max-width: min(260px, calc(100vw - 20px)); margin-top: 158px; margin-left: 10px; padding: 3px 6px; color: #cbd5e1; background: rgba(8, 18, 33, .82); border: 1px solid rgba(148, 163, 184, .25); border-radius: 7px; box-shadow: 0 4px 14px rgba(2, 6, 23, .22); font-size: 8px; line-height: 1.25; white-space: normal; pointer-events: auto; }
+  .leaflet-top.leaflet-left .leaflet-control-attribution a { color: #f5b955; }
   .command-card h2 { margin: 4px 0 10px; font-size: 13px; }
   .command-actions button { min-height: 35px; font-size: 10px; }
   .economy-panel { top: 62px; right: 10px; width: calc(100vw - 20px); }

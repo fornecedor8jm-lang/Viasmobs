@@ -108,6 +108,7 @@ export const GameMap: React.FC<GameMapProps> = ({
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
+    if (window.innerWidth <= 640) map.attributionControl.setPosition('topleft');
 
     const initialTile = createTileLayer(tileLayer).addTo(map);
 

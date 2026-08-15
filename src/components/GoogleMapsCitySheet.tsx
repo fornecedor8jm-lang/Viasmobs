@@ -30,7 +30,8 @@ interface GoogleMapsCitySheetProps {
   onUpgradeNeighborhood: (cityId: string, neighborhoodId: string, cost: number) => void;
   onUpgradeSecurity: (cityId: string, upgradeType: 'station' | 'patrol' | 'camera' | 'prf', cost: number) => void;
   onReclaimAdministration: (cityId: string) => void;
-  initialTab?: 'overview' | 'neighborhoods' | 'security';
+  onStartPoliticalMission: (cityId: string) => void;
+  initialTab?: 'overview' | 'neighborhoods' | 'security' | 'population';
 }
 
 export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
@@ -43,9 +44,10 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
   onUpgradeNeighborhood,
   onUpgradeSecurity,
   onReclaimAdministration,
+  onStartPoliticalMission,
   initialTab = 'overview'
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'neighborhoods' | 'security'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'neighborhoods' | 'security' | 'population'>(initialTab);
 
   const neighborhoodUpgradeCost = 15000;
   const securityUpgradeCost = 25000;
@@ -53,6 +55,16 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
   const leadRival = getLeadRival(city);
   const recoveryObjectives = getRecoveryObjectives(city, roads);
   const administrationTaken = crisisLevel === 'taken';
+  const approval = city.politics?.approval ?? 60;
+  const populationMood = approval >= 80
+    ? { label: 'Muito satisfeita', detail: 'A população apoia obras e reduz a força dos rivais.', color: 'emerald' }
+    : approval >= 60
+      ? { label: 'Satisfeita', detail: 'A administração segue estável, mas precisa de manutenção.', color: 'emerald' }
+      : approval >= 50
+        ? { label: 'Atenta', detail: 'Há apoio, porém vias e bairros precisam de atenção.', color: 'blue' }
+        : approval >= 30
+          ? { label: 'Insatisfeita', detail: 'O rival começou a ganhar espaço na cidade.', color: 'amber' }
+          : { label: administrationTaken ? 'Administração tomada' : 'Revoltada', detail: administrationTaken ? 'O rival assumiu o controle da cidade.' : 'O golpe pode acontecer se a cidade continuar abandonada.', color: 'rose' };
 
   return (
     <div className="absolute bottom-16 sm:bottom-4 left-3 right-3 sm:left-4 sm:w-[440px] max-h-[85vh] z-[520] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-200">
@@ -103,7 +115,7 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-around border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-bold">
+      <div className="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-[10px] sm:text-xs font-bold">
         <button
           onClick={() => setActiveTab('overview')}
           className={`py-2.5 flex-1 text-center transition border-b-2 ${
@@ -122,11 +134,19 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('security')}
-          className={`py-2.5 flex-1 text-center transition border-b-2 ${
+          className={`py-2.5 text-center transition border-b-2 ${
             activeTab === 'security' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500'
           }`}
         >
-          Segurança ({city.security.score}%)
+          Segurança
+        </button>
+        <button
+          onClick={() => setActiveTab('population')}
+          className={`py-2.5 text-center transition border-b-2 ${
+            activeTab === 'population' ? 'border-rose-600 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500'
+          }`}
+        >
+          População
         </button>
       </div>
 
@@ -139,64 +159,12 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
               "{city.description}"
             </p>
 
-            {city.politics && (
-              <section className={`p-3.5 rounded-2xl border space-y-3 ${
-                administrationTaken
-                  ? 'bg-rose-950/20 border-rose-500/60'
-                  : crisisLevel === 'critical'
-                    ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-700'
-                    : crisisLevel === 'alert'
-                      ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700'
-                      : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
-              }`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2">
-                    {administrationTaken ? <Siren className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" /> : <ShieldAlert className={`w-5 h-5 shrink-0 mt-0.5 ${crisisLevel === 'stable' ? 'text-emerald-500' : 'text-amber-500'}`} />}
-                    <div>
-                      <h3 className="font-black text-slate-800 dark:text-slate-100">
-                        {administrationTaken ? 'Administração tomada pelo rival' : crisisLevel === 'critical' ? 'Risco iminente de golpe' : crisisLevel === 'alert' ? 'Rival ganhando apoio' : 'Administração estável'}
-                      </h3>
-                      <p className="mt-0.5 text-[10px] text-slate-600 dark:text-slate-300">
-                        {administrationTaken
-                          ? 'A cidade não gera impostos até que você reconquiste a confiança da população.'
-                          : leadRival
-                            ? `${leadRival.name} tem ${leadRival.support}% de apoio e explora problemas de ${leadRival.focus}.`
-                            : 'Obras, bairros e segurança mantêm os rivais afastados.'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-lg font-mono font-black text-xs ${administrationTaken ? 'bg-rose-500 text-white' : 'bg-white/70 dark:bg-slate-900/70 text-slate-800 dark:text-slate-100'}`}>
-                    {city.politics.approval}% apoio
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-300"><span>Apoio à administração</span><span>{city.politics.approval}%</span></div>
-                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-300 ${administrationTaken ? 'bg-rose-500' : city.politics.approval < 30 ? 'bg-rose-500' : city.politics.approval < 50 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${city.politics.approval}%` }} />
-                  </div>
-                </div>
-
-                {administrationTaken && (
-                  <div className="pt-2 border-t border-rose-500/20 space-y-2">
-                    <p className="font-bold text-[11px] text-rose-700 dark:text-rose-300">Missão de reconquista: conclua os três compromissos abaixo.</p>
-                    <div className="grid gap-1.5 text-[10px] text-slate-700 dark:text-slate-200">
-                      <span className={recoveryObjectives.routeReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><Wrench className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.routeReady ? 'Concluído' : 'Pendente'}: rota confiável até a cidade</span>
-                      <span className={recoveryObjectives.neighborhoodReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><Building2 className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.neighborhoodReady ? 'Concluído' : 'Pendente'}: um bairro com 75% de influência</span>
-                      <span className={recoveryObjectives.securityReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><ShieldCheck className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.securityReady ? 'Concluído' : 'Pendente'}: segurança acima de 60%</span>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!allRecoveryObjectivesComplete(recoveryObjectives)}
-                      onClick={() => onReclaimAdministration(city.id)}
-                      className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
-                    >
-                      Recuperar Administração
-                    </button>
-                  </div>
-                )}
-              </section>
-            )}
+            <button type="button" onClick={() => setActiveTab('population')} className={`w-full p-3 rounded-2xl border text-left transition ${administrationTaken ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-700' : crisisLevel === 'critical' || crisisLevel === 'alert' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700' : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700'}`}>
+              <span className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2"><ShieldAlert className={administrationTaken ? 'w-4 h-4 text-rose-500' : crisisLevel === 'stable' ? 'w-4 h-4 text-emerald-500' : 'w-4 h-4 text-amber-500'} /><span className="font-black text-slate-800 dark:text-slate-100">{administrationTaken ? 'Cidade tomada' : 'Ver humor e risco de golpe'}</span></span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300">Aba População →</span>
+              </span>
+            </button>
 
             {/* City Key Stats Grid */}
             <div className="grid grid-cols-2 gap-2">
@@ -386,6 +354,63 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'population' && (
+          <div className="space-y-3">
+            <div className={`p-3.5 rounded-2xl border ${
+              populationMood.color === 'rose' ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-700'
+                : populationMood.color === 'amber' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700'
+                  : populationMood.color === 'blue' ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-700'
+                    : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
+            }`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  {administrationTaken ? <Siren className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" /> : <Users className={`w-5 h-5 shrink-0 mt-0.5 ${populationMood.color === 'amber' ? 'text-amber-500' : populationMood.color === 'rose' ? 'text-rose-500' : 'text-emerald-500'}`} />}
+                  <div>
+                    <h3 className="font-black text-slate-800 dark:text-slate-100">Humor: {populationMood.label}</h3>
+                    <p className="mt-0.5 text-[10px] text-slate-600 dark:text-slate-300">{populationMood.detail}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-lg font-mono font-black text-xs ${administrationTaken ? 'bg-rose-500 text-white' : 'bg-white/70 dark:bg-slate-900/70 text-slate-800 dark:text-slate-100'}`}>{approval}%</span>
+              </div>
+              <div className="mt-3 space-y-1">
+                <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-300"><span>Apoio à administração</span><span>{approval}%</span></div>
+                <div className="h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div className={`h-full rounded-full ${populationMood.color === 'rose' ? 'bg-rose-500' : populationMood.color === 'amber' ? 'bg-amber-500' : populationMood.color === 'blue' ? 'bg-blue-500' : 'bg-emerald-500'}`} style={{ width: `${approval}%` }} /></div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-black text-slate-800 dark:text-slate-100">Rival em destaque</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">{leadRival ? `${leadRival.name} explora problemas de ${leadRival.focus}.` : 'Nenhum rival identificado.'}</p>
+                </div>
+                <span className="px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-mono font-black text-xs">{leadRival?.support ?? 0}% rival</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-rose-500 rounded-full" style={{ width: `${leadRival?.support ?? 0}%` }} /></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onStartPoliticalMission(city.id)}
+              className={`w-full py-3 rounded-xl font-black text-xs shadow transition active:scale-[.98] ${administrationTaken ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-slate-900 hover:bg-slate-800 dark:bg-rose-600 dark:hover:bg-rose-500 text-white'}`}
+            >
+              {administrationTaken ? 'Iniciar Missão de Reconquista' : 'Iniciar Missão do Golpe'}
+            </button>
+
+            {administrationTaken && (
+              <div className="p-3.5 rounded-2xl bg-rose-950/15 border border-rose-500/40 space-y-2">
+                <p className="font-black text-[11px] text-rose-700 dark:text-rose-300">Reconquiste a administração cumprindo os três compromissos.</p>
+                <div className="grid gap-1.5 text-[10px] text-slate-700 dark:text-slate-200">
+                  <span className={recoveryObjectives.routeReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><Wrench className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.routeReady ? 'Concluído' : 'Pendente'}: rota confiável</span>
+                  <span className={recoveryObjectives.neighborhoodReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><Building2 className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.neighborhoodReady ? 'Concluído' : 'Pendente'}: bairro com 75% de influência</span>
+                  <span className={recoveryObjectives.securityReady ? 'text-emerald-600 dark:text-emerald-400' : ''}><ShieldCheck className="inline w-3.5 h-3.5 mr-1" />{recoveryObjectives.securityReady ? 'Concluído' : 'Pendente'}: segurança acima de 60%</span>
+                </div>
+                <button type="button" disabled={!allRecoveryObjectivesComplete(recoveryObjectives)} onClick={() => onReclaimAdministration(city.id)} className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed">Recuperar Administração</button>
+              </div>
+            )}
           </div>
         )}
       </div>
