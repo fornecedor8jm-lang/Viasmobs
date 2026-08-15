@@ -103,6 +103,7 @@
 .icon-trigger { width: 38px; height: 38px; border-radius: 10px; }
 .icon-trigger:hover { color: #f5b955; }
 .active-mobile-layer { color: #172033; background: #f5b955; border-color: #f5b955; }
+.satellite-header-trigger { display: none; }
 .rotate-180 { transform: rotate(180deg); }
 .mission-brief { position: absolute; top: 86px; left: 16px; display: flex; align-items: flex-start; gap: 9px; max-width: min(390px, calc(100vw - 32px)); padding: 10px 12px; border-left: 3px solid #f5b955; background: rgba(8, 18, 33, .82); box-shadow: 0 12px 28px rgba(2, 6, 23, .2); backdrop-filter: blur(10px); }
 .mission-icon { display: grid; place-items: center; color: #f5b955; }
@@ -181,10 +182,12 @@
   .icon-trigger { width: 34px; height: 34px; }
   .viasmobs-header-actions { gap: 5px; }
   .mobile-quick-actions { display: flex; }
+  .satellite-header-trigger { display: flex; }
   .mission-brief { top: 69px; left: 10px; max-width: calc(100vw - 20px); padding: 8px 10px; }
   .mission-brief h2 { font-size: 11px; }
   .mission-brief span { font-size: 9px; }
   .command-card { right: 10px; bottom: 13px; left: 10px; width: auto; padding: 12px; border-radius: 13px; }
+  .leaflet-bottom.leaflet-right { bottom: 118px; }
   .command-card h2 { margin: 4px 0 10px; font-size: 13px; }
   .command-actions button { min-height: 35px; font-size: 10px; }
   .economy-panel { top: 62px; right: 10px; width: calc(100vw - 20px); }
