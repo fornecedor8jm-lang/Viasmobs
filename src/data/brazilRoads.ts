@@ -42,16 +42,16 @@ export const INITIAL_ROADS: Road[] = [
     fromCityId: 'macapa',
     toCityId: 'porto_grande',
     realKm: 105,
-    type: 'asfalto_simples',
-    condition: 70,
-    trafficLevel: 'Livre',
+    type: 'terra',
+    condition: 35,
+    trafficLevel: 'Moderado',
     hasToll: false,
     tollFee: 0,
     tollRevenuePerHour: 0,
     bridgesCount: 4,
     hasOverpass: false,
     hasSmartTrafficLights: false,
-    maxSpeedKmH: 80,
+    maxSpeedKmH: 45,
     shortcuts: [
       {
         id: 'sc_macapa_portogrande_duplicacao',
@@ -315,6 +315,41 @@ export const INITIAL_ROADS: Road[] = [
       [-2.4000, -56.7000], // Parintins
       [-2.7000, -58.4000], // Itacoatiara
       [-3.1190, -60.0217]  // Manaus
+    ]
+  },
+
+  {
+    id: 'road_manaus_manacapuru',
+    name: 'AM-070 / Rodovia Manoel Urbano (Manaus ➔ Manacapuru)',
+    fromCityId: 'manaus',
+    toCityId: 'manacapuru',
+    realKm: 93,
+    type: 'asfalto_simples',
+    condition: 78,
+    trafficLevel: 'Moderado',
+    hasToll: false,
+    tollFee: 0,
+    tollRevenuePerHour: 0,
+    bridgesCount: 3,
+    hasOverpass: true,
+    hasSmartTrafficLights: false,
+    maxSpeedKmH: 80,
+    shortcuts: [
+      {
+        id: 'sc_polo_solimoes',
+        name: 'Corredor Logístico do Solimões',
+        cost: 24000,
+        timeSavingsPercent: 25,
+        built: false,
+        description: 'Melhora os acessos ao polo urbano e reduz o tempo entre Manaus e Manacapuru.',
+        coordinates: [[-3.1190, -60.0217], [-3.2200, -60.2900], [-3.29972, -60.62056]]
+      }
+    ],
+    coordinates: [
+      [-3.1190, -60.0217],
+      [-3.1800, -60.2000],
+      [-3.2500, -60.4100],
+      [-3.29972, -60.62056]
     ]
   },
 

@@ -19,6 +19,7 @@ import { playSound } from './utils/audio';
 
 const STORAGE_KEY = 'viasmobs_game_state_v2';
 const LEGACY_STORAGE_KEY = 'brasil_vias_game_state_v1';
+const DATA_MIGRATION_KEY = 'viasmobs_data_migration_v3';
 
 type ActiveTab = 'explore' | 'routes' | 'pave' | 'boss' | 'regions';
 
@@ -73,10 +74,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('explore');
   const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tutorialOpen, setTutorialOpen] = useState(() => !localStorage.getItem('viasmobs_tutorial_seen_v1'));
+  const [tutorialOpen, setTutorialOpen] = useState(() => !localStorage.getItem('viasmobs_tutorial_seen_v2'));
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [firstWorkComplete, setFirstWorkComplete] = useState(() => localStorage.getItem('viasmobs_first_work_complete_v1') === 'true');
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security'>('overview');
   const economyRef = useRef(economy);
-  const tileLayer: TileLayerType = 'osm';
+  const [tileLayer, setTileLayer] = useState<TileLayerType>('terrain');
 
   const currentRegion = useMemo(() => {
     const unlockedRegions = regions.filter((region) => region.unlocked);
@@ -94,6 +98,25 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_regions`, JSON.stringify(regions));
     localStorage.setItem(`${STORAGE_KEY}_economy`, JSON.stringify(economy));
   }, [bossSectors, cities, economy, regions, roads]);
+
+  useEffect(() => {
+    if (localStorage.getItem(DATA_MIGRATION_KEY)) return;
+    const manacapuru = INITIAL_CITIES.find((city) => city.id === 'manacapuru');
+    const manacapuruRoad = INITIAL_ROADS.find((road) => road.id === 'road_manaus_manacapuru');
+    const firstWorkRoad = INITIAL_ROADS.find((road) => road.id === 'road_macapa_portogrande');
+
+    if (manacapuru) {
+      setCities((previous) => previous.some((city) => city.id === manacapuru.id) ? previous : [...previous, manacapuru]);
+    }
+    setRoads((previous) => {
+      let next = previous.some((road) => road.id === manacapuruRoad?.id) || !manacapuruRoad ? previous : [...previous, manacapuruRoad];
+      if (firstWorkRoad && economyRef.current.roadsPavedKm <= 25) {
+        next = next.map((road) => road.id === firstWorkRoad.id ? firstWorkRoad : road);
+      }
+      return next;
+    });
+    localStorage.setItem(DATA_MIGRATION_KEY, 'true');
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -193,7 +216,11 @@ export default function App() {
       return { ...city, neighborhoods, influence, dominated: neighborhoods.every((neighborhood) => neighborhood.dominated) };
     }));
     setSelectedCity((city) => city?.id === cityId ? { ...city, influence: Math.min(100, city.influence + 8) } : city);
-    setNotice('Bairro desenvolvido. Mais influência aumenta indústria e libera novas regiões.');
+    if (cityId === 'macapa') {
+      setNotice('Tutorial concluído: você desenvolveu um bairro. Continue até 100% para dominá-lo por completo.');
+    } else {
+      setNotice('Bairro desenvolvido. Mais influência aumenta indústria e libera novas regiões.');
+    }
   }, [spendMoney]);
 
   const handleUpgradeSecurity = useCallback((cityId: string, type: 'station' | 'patrol' | 'camera' | 'prf', cost: number) => {
@@ -219,8 +246,16 @@ export default function App() {
       : road));
     setEconomy((previous) => ({ ...previous, roadsPavedKm: previous.roadsPavedKm + 50 }));
     setSelectedRoad((road) => road?.id === roadId ? { ...road, type: targetType, condition: 100, maxSpeedKmH: speed } : road);
-    setNotice('Obra concluída. A rota está mais rápida e o fluxo melhorou.');
-  }, [spendMoney]);
+    if (roadId === 'road_macapa_portogrande' && !firstWorkComplete) {
+      setFirstWorkComplete(true);
+      localStorage.setItem('viasmobs_first_work_complete_v1', 'true');
+      setTutorialStep(2);
+      setTutorialOpen(true);
+      setNotice('Primeira obra concluída. O tutorial agora mostra como dominar o primeiro bairro.');
+    } else {
+      setNotice('Obra concluída. A rota está mais rápida e o fluxo melhorou.');
+    }
+  }, [firstWorkComplete, spendMoney]);
 
   const handleRepairRoad = useCallback((roadId: string, cost: number) => {
     if (!spendMoney(cost)) return;
@@ -313,8 +348,29 @@ export default function App() {
   }, [activeTrip]);
 
   const closeTutorial = () => {
-    localStorage.setItem('viasmobs_tutorial_seen_v1', 'true');
+    localStorage.setItem('viasmobs_tutorial_seen_v2', 'true');
     setTutorialOpen(false);
+  };
+
+  const startPavingTutorial = () => {
+    const road = roads.find((item) => item.id === 'road_macapa_portogrande');
+    if (!road) return setNotice('O trecho guiado ainda não está disponível.');
+    setSelectedCity(null);
+    setSelectedRoad(road);
+    setFocusTarget({ lat: road.coordinates[1][0], lng: road.coordinates[1][1], zoom: 8 });
+    setActiveTab('pave');
+    setNotice('Passo guiado: clique em “Asfaltar Rodovia” para melhorar o trecho Macapá–Porto Grande.');
+  };
+
+  const startNeighborhoodTutorial = () => {
+    const macapa = cities.find((city) => city.id === 'macapa');
+    if (!macapa) return setNotice('Macapá ainda não está disponível.');
+    setActiveTab('explore');
+    setSelectedRoad(null);
+    setCitySheetTab('neighborhoods');
+    setSelectedCity(macapa);
+    setFocusTarget({ lat: macapa.lat, lng: macapa.lng, zoom: 10 });
+    setNotice('Passo guiado: escolha um bairro e clique em “Desenvolver” para aumentar sua influência.');
   };
 
   const showRoutes = () => {
@@ -341,7 +397,7 @@ export default function App() {
           pointA={pointA}
           pointB={pointB}
           tileLayer={tileLayer}
-          onSelectCity={(city) => { setSelectedCity(city); setSelectedRoad(null); setFocusTarget({ lat: city.lat, lng: city.lng, zoom: 9 }); }}
+          onSelectCity={(city) => { setSelectedCity(city); setCitySheetTab('overview'); setSelectedRoad(null); setFocusTarget({ lat: city.lat, lng: city.lng, zoom: 9 }); }}
           onSelectRoad={(road) => { setSelectedRoad(road); setSelectedCity(null); setActiveTab('pave'); }}
           onSetPointA={setPointA}
           onSetPointB={setPointB}
@@ -360,8 +416,10 @@ export default function App() {
         onOpenWorks={showWorks}
         onOpenRegions={() => { setSelectedCity(null); setSelectedRoad(null); setActiveTab('regions'); }}
         onOpenBoss={() => { setSelectedCity(null); setSelectedRoad(null); setFocusTarget({ lat: -3.8, lng: -52.5, zoom: 6.5 }); setActiveTab('boss'); }}
-        onOpenTutorial={() => setTutorialOpen(true)}
+        onOpenTutorial={() => { setTutorialStep(0); setTutorialOpen(true); }}
         onOpenRules={() => setRulesOpen(true)}
+        tileLayer={tileLayer}
+        onChangeTileLayer={setTileLayer}
       />}
 
       {activeTab === 'routes' && !activeTrip && <GoogleMapsDirections
@@ -400,9 +458,11 @@ export default function App() {
       />}
 
       {selectedCity && !activeTrip && <GoogleMapsCitySheet
+        key={`${selectedCity.id}-${citySheetTab}`}
         city={selectedCity}
         playerMoney={economy.money}
-        onClose={() => setSelectedCity(null)}
+        initialTab={citySheetTab}
+        onClose={() => { setSelectedCity(null); setCitySheetTab('overview'); }}
         onSetPointA={(city) => { setPointA(city); setSelectedCity(null); showRoutes(); }}
         onSetPointB={(city) => { setPointB(city); setSelectedCity(null); showRoutes(); }}
         onUpgradeNeighborhood={handleUpgradeNeighborhood}
@@ -424,7 +484,7 @@ export default function App() {
         onClose={() => setActiveTab('explore')}
       />}
 
-      {tutorialOpen && <TutorialModal onClose={closeTutorial} onOpenFirstRoute={() => { closeTutorial(); showRoutes(); }} />}
+      {tutorialOpen && <TutorialModal initialStep={tutorialStep} onClose={closeTutorial} onStartPaving={() => { closeTutorial(); startPavingTutorial(); }} onStartNeighborhood={() => { closeTutorial(); startNeighborhoodTutorial(); }} />}
       {rulesOpen && <RulesModal currentRegionName={currentRegion.name} citiesRequired={currentRegion.citiesRequiredToUnlockNext} onClose={() => setRulesOpen(false)} />}
     </div>
   );

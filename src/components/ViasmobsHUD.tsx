@@ -8,13 +8,14 @@ import {
   Construction,
   FlagTriangleRight,
   Landmark,
+  Layers,
   Map,
   Route,
   Sparkles,
   Trophy,
   X,
 } from 'lucide-react';
-import type { City, GameEconomy, RegionInfo, Road } from '../types/game';
+import type { City, GameEconomy, RegionInfo, Road, TileLayerType } from '../types/game';
 
 interface ViasmobsHUDProps {
   economy: GameEconomy;
@@ -28,6 +29,8 @@ interface ViasmobsHUDProps {
   onOpenBoss: () => void;
   onOpenTutorial: () => void;
   onOpenRules: () => void;
+  tileLayer: TileLayerType;
+  onChangeTileLayer: (layer: TileLayerType) => void;
 }
 
 const money = (value: number) => `R$ ${Math.round(value).toLocaleString('pt-BR')}`;
@@ -44,6 +47,8 @@ export function ViasmobsHUD({
   onOpenBoss,
   onOpenTutorial,
   onOpenRules,
+  tileLayer,
+  onChangeTileLayer,
 }: ViasmobsHUDProps) {
   const [showEconomy, setShowEconomy] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -110,6 +115,14 @@ export function ViasmobsHUD({
 
       {showMore && (
         <div className="more-menu">
+          <div className="map-layer-switcher">
+            <span><Layers size={14} /> Camada do mapa</span>
+            <div>
+              <button type="button" className={tileLayer === 'osm' ? 'active-layer' : ''} onClick={() => onChangeTileLayer('osm')}>Base</button>
+              <button type="button" className={tileLayer === 'terrain' ? 'active-layer' : ''} onClick={() => onChangeTileLayer('terrain')}>Terreno</button>
+              <button type="button" className={tileLayer === 'satellite' ? 'active-layer' : ''} onClick={() => onChangeTileLayer('satellite')}>Satélite</button>
+            </div>
+          </div>
           <button type="button" onClick={() => { setShowMore(false); onOpenRegions(); }}><Map size={16} /> Regiões</button>
           <button type="button" onClick={() => { setShowMore(false); onOpenBoss(); }}><Trophy size={16} /> Desafio BR-230</button>
           <button type="button" onClick={() => { setShowMore(false); onOpenRules(); }}><BookOpen size={16} /> Regras do jogo</button>

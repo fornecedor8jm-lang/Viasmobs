@@ -42,7 +42,7 @@ export const GoogleMapsPaveSheet: React.FC<GoogleMapsPaveSheetProps> = ({
   onInstallBridges,
   onClose
 }) => {
-  const [filter, setFilter] = useState<'all' | 'dirt' | 'paved' | 'damaged'>('all');
+  const [filter, setFilter] = useState<'all' | 'dirt' | 'paved' | 'damaged'>('dirt');
 
   const filteredRoads = roads.filter(r => {
     if (filter === 'dirt') return r.type === 'terra';

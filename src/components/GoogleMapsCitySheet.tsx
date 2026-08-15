@@ -25,6 +25,7 @@ interface GoogleMapsCitySheetProps {
   onSetPointB: (city: City) => void;
   onUpgradeNeighborhood: (cityId: string, neighborhoodId: string, cost: number) => void;
   onUpgradeSecurity: (cityId: string, upgradeType: 'station' | 'patrol' | 'camera' | 'prf', cost: number) => void;
+  initialTab?: 'overview' | 'neighborhoods' | 'security';
 }
 
 export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
@@ -34,9 +35,10 @@ export const GoogleMapsCitySheet: React.FC<GoogleMapsCitySheetProps> = ({
   onSetPointA,
   onSetPointB,
   onUpgradeNeighborhood,
-  onUpgradeSecurity
+  onUpgradeSecurity,
+  initialTab = 'overview'
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'neighborhoods' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'neighborhoods' | 'security'>(initialTab);
 
   const neighborhoodUpgradeCost = 15000;
   const securityUpgradeCost = 25000;

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { City, Road, ActiveVehicle, ActiveTrip, TileLayerType } from '../types/game';
 
@@ -30,14 +30,27 @@ const TILE_PROVIDERS = {
     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
   },
   terrain: {
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC'
   },
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }
 };
+
+function createTileLayer(type: TileLayerType) {
+  const provider = TILE_PROVIDERS[type];
+  return L.tileLayer(provider.url, {
+    attribution: provider.attribution,
+    maxZoom: 19,
+    maxNativeZoom: 19,
+    keepBuffer: 10,
+    updateWhenIdle: false,
+    updateWhenZooming: true,
+    crossOrigin: true,
+  });
+}
 
 export const GameMap: React.FC<GameMapProps> = ({
   cities,
@@ -62,6 +75,7 @@ export const GameMap: React.FC<GameMapProps> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const roadsLayerRef = useRef<L.LayerGroup | null>(null);
   const vehiclesLayerRef = useRef<L.LayerGroup | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(7);
 
   // Initialize Map
   useEffect(() => {
@@ -73,15 +87,15 @@ export const GameMap: React.FC<GameMapProps> = ({
       zoom: 7,
       minZoom: 4,
       maxZoom: 18,
-      zoomControl: false
+      zoomControl: false,
+      worldCopyJump: true,
+      zoomSnap: 0.5,
+      preferCanvas: true
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    const initialTile = L.tileLayer(TILE_PROVIDERS[tileLayer].url, {
-      attribution: TILE_PROVIDERS[tileLayer].attribution,
-      maxZoom: 19
-    }).addTo(map);
+    const initialTile = createTileLayer(tileLayer).addTo(map);
 
     tileLayerRef.current = initialTile;
     markersLayerRef.current = L.layerGroup().addTo(map);
@@ -90,7 +104,16 @@ export const GameMap: React.FC<GameMapProps> = ({
 
     mapInstanceRef.current = map;
 
+    const refreshMap = () => {
+      setZoomLevel(map.getZoom());
+      map.invalidateSize({ animate: false, pan: false });
+    };
+    map.on('zoomend moveend resize', refreshMap);
+    window.addEventListener('resize', refreshMap);
+    window.setTimeout(refreshMap, 80);
+
     return () => {
+      window.removeEventListener('resize', refreshMap);
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -108,10 +131,7 @@ export const GameMap: React.FC<GameMapProps> = ({
   useEffect(() => {
     if (!mapInstanceRef.current || !tileLayerRef.current) return;
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
-    const newTile = L.tileLayer(TILE_PROVIDERS[tileLayer].url, {
-      attribution: TILE_PROVIDERS[tileLayer].attribution,
-      maxZoom: 19
-    }).addTo(mapInstanceRef.current);
+    const newTile = createTileLayer(tileLayer).addTo(mapInstanceRef.current);
     tileLayerRef.current = newTile;
   }, [tileLayer]);
 
@@ -124,6 +144,9 @@ export const GameMap: React.FC<GameMapProps> = ({
       const isSelected = selectedRoad?.id === road.id;
       const isTransam = road.isTransamazonicaSector;
       const isTripRoad = activeTrip?.pathRoadIds.includes(road.id);
+      const isOverview = zoomLevel < 7.5;
+      const visibleOnOverview = road.fromCityId === 'macapa' || road.fromCityId === 'manaus' || road.fromCityId === 'belem' || isTransam || isSelected || isTripRoad;
+      if (isOverview && !visibleOnOverview) return;
 
       let color = '#78716c'; // terra/padrao
       let weight = 4;
@@ -148,6 +171,8 @@ export const GameMap: React.FC<GameMapProps> = ({
         color = '#22c55e'; // active navigation path (Google Maps Green / Blue)
         weight = 8;
       }
+
+      if (isOverview) weight = Math.max(2, weight - 2);
 
       // Outer glow for selected or transamazonica or trip route
       if (isSelected || isTransam || isTripRoad) {
@@ -217,14 +242,19 @@ export const GameMap: React.FC<GameMapProps> = ({
         roadsLayerRef.current?.addLayer(scPoly);
       });
     });
-  }, [roads, selectedRoad, activeTrip]);
+  }, [roads, selectedRoad, activeTrip, zoomLevel]);
 
   // Render City Markers (Google Maps Place Pins)
   useEffect(() => {
     if (!markersLayerRef.current || !mapInstanceRef.current) return;
     markersLayerRef.current.clearLayers();
 
-    cities.filter((city) => city.unlocked || pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id).forEach(city => {
+    const overviewHubs = new Set(['macapa', 'belem', 'manaus', 'manacapuru']);
+    const isOverview = zoomLevel < 7.5;
+    cities.filter((city) => {
+      const requiredForInteraction = pointA?.id === city.id || pointB?.id === city.id || selectedCity?.id === city.id;
+      return requiredForInteraction || (isOverview ? overviewHubs.has(city.id) : city.unlocked);
+    }).forEach(city => {
       const isPointA = pointA?.id === city.id;
       const isPointB = pointB?.id === city.id;
       const isSelected = selectedCity?.id === city.id;
@@ -262,16 +292,18 @@ export const GameMap: React.FC<GameMapProps> = ({
           <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full ${pinColor} shadow-xl border border-white/60 transition-transform transform group-hover:scale-110">
             <span class="text-xs">${iconEmoji}</span>
             <span class="text-xs font-bold font-display whitespace-nowrap tracking-tight">${city.name}</span>
-            <span class="text-[9px] px-1 rounded bg-black/30 font-mono">${city.state}</span>
+            ${isOverview ? '' : `<span class="text-[9px] px-1 rounded bg-black/30 font-mono">${city.state}</span>`}
           </div>
           ${
-            city.unlocked
+            city.unlocked && !isOverview
               ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-slate-950/90 border border-slate-700 text-[9px] font-mono text-emerald-400 flex items-center gap-0.5 shadow">
                   <span>${Math.round(city.influence)}%</span>
                 </div>`
-              : `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1 rounded bg-rose-950 text-[9px] text-rose-300 border border-rose-800">
-                  🔒 Bloqueada
-                </div>`
+              : (!city.unlocked && !isOverview
+                ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1 rounded bg-rose-950 text-[9px] text-rose-300 border border-rose-800">
+                    🔒 Bloqueada
+                  </div>`
+                : '')
           }
         </div>
       `;
@@ -291,14 +323,14 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       markersLayerRef.current?.addLayer(marker);
     });
-  }, [cities, pointA, pointB, selectedCity]);
+  }, [cities, pointA, pointB, selectedCity, zoomLevel]);
 
   // Render Animated Vehicles
   useEffect(() => {
     if (!vehiclesLayerRef.current || !mapInstanceRef.current) return;
     vehiclesLayerRef.current.clearLayers();
 
-    vehicles.forEach(vehicle => {
+    vehicles.filter((vehicle) => zoomLevel >= 7.5 || vehicle.isPlayerTrip).forEach(vehicle => {
       let iconChar = '🚗';
       let bgColor = 'bg-blue-600';
       if (vehicle.type === 'caminhao_carga') {
@@ -341,7 +373,7 @@ export const GameMap: React.FC<GameMapProps> = ({
 
       vehiclesLayerRef.current?.addLayer(marker);
     });
-  }, [vehicles]);
+  }, [vehicles, zoomLevel]);
 
   return (
     <div className="relative w-full h-full">
