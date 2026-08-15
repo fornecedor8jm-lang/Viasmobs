@@ -156,14 +156,35 @@ export const GoogleMapsDirections: React.FC<GoogleMapsDirectionsProps> = ({
             </div>
           </div>
 
-          {/* Swap Button (⇅) */}
-          <button
-            onClick={onSwapPoints}
-            className="p-2.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white transition active:scale-95 shadow-sm"
-            title="Inverter Origem e Destino"
-          >
-            <ArrowUpDown className="w-4 h-4" />
-          </button>
+          {/* Swap Button (⇅) & Auto Suggest */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onSwapPoints}
+              className="p-2.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white transition active:scale-95 shadow-sm"
+              title="Inverter Origem e Destino"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => {
+                // Find pair of unlocked cities with highest freight or shortest distance
+                const unlocked = cities.filter(c => c.unlocked);
+                if (unlocked.length >= 2) {
+                  const orig = unlocked[0];
+                  const dest = unlocked[1];
+                  onSelectPointA(orig);
+                  onSelectPointB(dest);
+                  playSound.click();
+                }
+              }}
+              className="px-2.5 py-2 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[11px] flex items-center gap-1 shadow transition"
+              title="Sugerir rota ideal"
+            >
+              <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
+              <span className="hidden sm:inline">Melhor Rota</span>
+            </button>
+          </div>
         </div>
 
         {/* Transport Modes Tabs */}
