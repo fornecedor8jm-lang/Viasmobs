@@ -16,11 +16,13 @@ import {
   Route,
   Satellite,
   Settings,
+  Siren,
   Sparkles,
   Trophy,
   X,
 } from 'lucide-react';
 import type { City, GameEconomy, RegionInfo, Road, TileLayerType } from '../types/game';
+import { getCityCrisisLevel } from '../utils/cityPolitics';
 
 export type RoadFilterType = 'all' | 'dirt' | 'paved' | 'damaged' | 'tolls' | 'traffic';
 
@@ -75,6 +77,10 @@ export function ViasmobsHUD({
   const unlockedCities = cities.filter((city) => city.unlocked).length;
   const dominatedCities = cities.filter((city) => city.dominated || city.influence >= 95).length;
   const roadsNeedingWork = roads.filter((road) => road.type === 'terra' || road.condition < 65).length;
+  const takenCities = cities.filter((city) => getCityCrisisLevel(city) === 'taken');
+  const criticalCities = cities.filter((city) => getCityCrisisLevel(city) === 'critical');
+  const missionCity = takenCities[0] ?? criticalCities[0];
+  const missionIsReclaim = Boolean(takenCities[0]);
 
   return (
     <div className="viasmobs-hud" aria-label="Central de comando Viasmobs">
@@ -109,11 +115,15 @@ export function ViasmobsHUD({
       </header>
 
       <section className="mission-brief">
-        <div className="mission-icon"><FlagTriangleRight size={20} /></div>
+        <div className="mission-icon">{missionCity ? <Siren size={20} /> : <FlagTriangleRight size={20} />}</div>
         <div>
-          <p>OBJETIVO ATUAL · FASE {currentRegion.phase}</p>
-          <h2>Rede do {currentRegion.name}</h2>
-          <span>{dominatedCities}/{unlockedCities} cidades dominadas · {roadsNeedingWork} vias em atenção</span>
+          <p>{missionCity ? missionIsReclaim ? 'MISSÃO URGENTE · RECONQUISTA' : 'MISSÃO URGENTE · EVITAR GOLPE' : `OBJETIVO ATUAL · FASE ${currentRegion.phase}`}</p>
+          <h2>{missionCity ? missionIsReclaim ? `Recupere ${missionCity.name}` : `Defenda ${missionCity.name}` : `Rede do ${currentRegion.name}`}</h2>
+          <span>{missionCity
+            ? missionIsReclaim
+              ? 'Entregue rota, bairro e segurança para retomar a administração.'
+              : `${missionCity.politics?.approval ?? 0}% de apoio · o rival está perto de tomar a cidade.`
+            : `${dominatedCities}/${unlockedCities} cidades dominadas · ${roadsNeedingWork} vias em atenção`}</span>
         </div>
       </section>
 

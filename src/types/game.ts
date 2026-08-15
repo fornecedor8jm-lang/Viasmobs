@@ -49,6 +49,22 @@ export interface CitySecurity {
   score: number; // 0 - 100
 }
 
+export type RivalFocus = 'infraestrutura' | 'bairros' | 'segurança' | 'transporte';
+export type CityAdministration = 'player' | 'rival';
+
+export interface CityRival {
+  id: string;
+  name: string;
+  focus: RivalFocus;
+  support: number; // 0 - 100
+}
+
+export interface CityPolitics {
+  approval: number; // 0 - 100
+  administration: CityAdministration;
+  rivals: CityRival[];
+}
+
 export interface City {
   id: string;
   name: string;
@@ -66,6 +82,7 @@ export interface City {
   security: CitySecurity;
   landmark: string;
   description: string;
+  politics?: CityPolitics;
 }
 
 export type RoadType = 'terra' | 'asfalto_simples' | 'duplicada' | 'via_expressa';

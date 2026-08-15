@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { City, Road, ActiveVehicle, ActiveTrip, TileLayerType } from '../types/game';
+import type { ActiveTrip, ActiveVehicle, City, Road, TileLayerType } from '../types/game';
+import { getCityCrisisLevel } from '../utils/cityPolitics';
 
 interface GameMapProps {
   cities: City[];
@@ -311,6 +312,7 @@ export const GameMap: React.FC<GameMapProps> = ({
       const isPointB = pointB?.id === city.id;
       const isSelected = selectedCity?.id === city.id;
       const isTargetCity = missionTargetCityId === city.id;
+      const crisisLevel = getCityCrisisLevel(city);
 
       // Color scheme based on unlock, domination, and selection
       let pinColor = 'bg-blue-600 text-white';
@@ -324,6 +326,17 @@ export const GameMap: React.FC<GameMapProps> = ({
       if (city.dominated) {
         pinColor = 'bg-amber-500 text-slate-950 font-black';
         iconEmoji = '👑';
+      }
+
+      if (crisisLevel === 'taken') {
+        pinColor = 'bg-rose-700 text-white font-black';
+        iconEmoji = '⚠️';
+      } else if (crisisLevel === 'critical') {
+        pinColor = 'bg-rose-600 text-white font-black';
+        iconEmoji = '🚨';
+      } else if (crisisLevel === 'alert') {
+        pinColor = 'bg-amber-500 text-slate-950 font-black';
+        iconEmoji = '⚠️';
       }
 
       if (isPointA) {
@@ -342,7 +355,7 @@ export const GameMap: React.FC<GameMapProps> = ({
       const customHtml = `
         <div class="relative group cursor-pointer ${lockOpacity}">
           ${isTargetCity ? '<div class="absolute -inset-2.5 rounded-full bg-amber-400/50 mission-target-ring"></div>' : ''}
-          ${city.unlocked && !isTargetCity ? '<div class="absolute -inset-1 rounded-full bg-blue-500/20 city-pulse"></div>' : ''}
+          ${city.unlocked && !isTargetCity ? `<div class="absolute -inset-1 rounded-full ${crisisLevel === 'taken' || crisisLevel === 'critical' ? 'bg-rose-500/30' : crisisLevel === 'alert' ? 'bg-amber-400/30' : 'bg-blue-500/20'} city-pulse"></div>` : ''}
           <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full ${pinColor} shadow-xl border ${isTargetCity ? 'border-amber-300 ring-4 ring-amber-400/60' : 'border-white/60'} transition-transform transform group-hover:scale-110">
             <span class="text-xs">${iconEmoji}</span>
             <span class="text-xs font-bold font-display whitespace-nowrap tracking-tight">${city.name}</span>
@@ -350,8 +363,8 @@ export const GameMap: React.FC<GameMapProps> = ({
           </div>
           ${
             city.unlocked && !isOverview
-              ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-slate-950/90 border border-slate-700 text-[9px] font-mono text-emerald-400 flex items-center gap-0.5 shadow">
-                  <span>${Math.round(city.influence)}%</span>
+              ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-slate-950/90 border border-slate-700 text-[9px] font-mono ${crisisLevel === 'taken' || crisisLevel === 'critical' ? 'text-rose-300' : crisisLevel === 'alert' ? 'text-amber-300' : 'text-emerald-400'} flex items-center gap-0.5 shadow">
+                  <span>${crisisLevel === 'taken' ? '⛔ tomada' : `${city.politics?.approval ?? Math.round(city.influence)}% apoio`}</span>
                 </div>`
               : (!city.unlocked && !isOverview
                 ? `<div class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-1 rounded bg-rose-950 text-[9px] text-rose-300 border border-rose-800">

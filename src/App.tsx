@@ -20,6 +20,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { StartScreen } from './components/StartScreen';
 import { WorkFeedbackModal, WorkFeedbackData } from './components/WorkFeedbackModal';
 import { playSound } from './utils/audio';
+import { adjustCityApproval, allRecoveryObjectivesComplete, ensureCityPolitics, getRecoveryObjectives, progressCityPolitics } from './utils/cityPolitics';
 
 const STORAGE_KEY = 'viasmobs_game_state_v2';
 const LEGACY_STORAGE_KEY = 'brasil_vias_game_state_v1';
@@ -115,6 +116,7 @@ export default function App() {
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadSavedState('claimed_quests', []));
   const [citySheetTab, setCitySheetTab] = useState<'overview' | 'neighborhoods' | 'security'>('overview');
   const economyRef = useRef(economy);
+  const takenCityIdsRef = useRef<Set<string>>(new Set());
   const [tileLayer, setTileLayer] = useState<TileLayerType>('terrain');
 
   const currentRegion = useMemo(() => {
@@ -154,6 +156,7 @@ export default function App() {
 
   useEffect(() => {
     if (!sessionStarted) return;
+    setCities((previous) => previous.map((city, index) => ensureCityPolitics(city, index)));
     if (localStorage.getItem(DATA_MIGRATION_KEY)) return;
     const manacapuru = INITIAL_CITIES.find((city) => city.id === 'manacapuru');
     const manacapuruRoad = INITIAL_ROADS.find((road) => road.id === 'road_manaus_manacapuru');
@@ -171,6 +174,25 @@ export default function App() {
     });
     localStorage.setItem(DATA_MIGRATION_KEY, 'true');
   }, [sessionStarted]);
+
+  useEffect(() => {
+    if (!sessionStarted) return;
+    const timer = window.setInterval(() => {
+      setCities((previous) => previous.map((city, index) => progressCityPolitics(city, roads, index)));
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [roads, sessionStarted]);
+
+  useEffect(() => {
+    if (!sessionStarted) return;
+    const takenCities = cities.filter((city) => city.politics?.administration === 'rival');
+    const newlyTaken = takenCities.find((city) => !takenCityIdsRef.current.has(city.id));
+    takenCityIdsRef.current = new Set(takenCities.map((city) => city.id));
+    if (newlyTaken) {
+      setNotice(`Alerta de crise: ${newlyTaken.name} foi tomada por um rival. A arrecadação municipal foi bloqueada até a reconquista.`);
+      playSound.siren();
+    }
+  }, [cities, sessionStarted]);
 
   useEffect(() => {
     if (!notice) return;
@@ -210,10 +232,11 @@ export default function App() {
     if (!sessionStarted) return;
     const timer = window.setInterval(() => {
       const unlockedCities = cities.filter((city) => city.unlocked);
-      const taxes = unlockedCities.reduce((sum, city) => sum + city.taxRevenuePerHour * (city.dominated ? 1.35 : 1 + city.influence / 200), 0) / 3600;
+      const managedCities = unlockedCities.filter((city) => city.politics?.administration !== 'rival');
+      const taxes = managedCities.reduce((sum, city) => sum + city.taxRevenuePerHour * (city.dominated ? 1.35 : 1 + city.influence / 200), 0) / 3600;
       const tolls = roads.filter((road) => road.hasToll).reduce((sum, road) => sum + road.tollRevenuePerHour, 0) / 3600;
-      const trade = unlockedCities.length * 2.8;
-      const industry = unlockedCities.filter((city) => city.influence >= 50).length * 4.2;
+      const trade = managedCities.length * 2.8;
+      const industry = managedCities.filter((city) => city.influence >= 50).length * 4.2;
       const earned = (taxes + tolls + trade + industry) * 0.2;
 
       setEconomy((previous) => ({
@@ -278,7 +301,7 @@ export default function App() {
         ? { ...neighborhood, influencePercent: Math.min(100, neighborhood.influencePercent + 25), dominated: neighborhood.influencePercent + 25 >= 100 }
         : neighborhood);
       const influence = neighborhoods.reduce((sum, neighborhood) => sum + neighborhood.influencePercent, 0) / neighborhoods.length;
-      return { ...city, neighborhoods, influence, dominated: neighborhoods.every((neighborhood) => neighborhood.dominated) };
+      return adjustCityApproval({ ...city, neighborhoods, influence, dominated: neighborhoods.every((neighborhood) => neighborhood.dominated) }, 8);
     }));
     setSelectedCity((city) => city?.id === cityId ? { ...city, influence: Math.min(100, city.influence + 8) } : city);
     if (cityId === 'macapa') {
@@ -299,7 +322,7 @@ export default function App() {
       if (type === 'camera') security.cameras += 5;
       if (type === 'prf') security.prfBases += 1;
       security.score = Math.min(100, Math.round(security.policeStations * 6 + security.patrolCars * 4 + security.cameras * 1.5 + security.prfBases * 10 + 30));
-      return { ...city, security };
+      return adjustCityApproval({ ...city, security }, 6);
     }));
     setNotice('Segurança melhorada. Uma rede segura aumenta a qualidade da mobilidade.');
   }, [spendMoney]);
@@ -317,6 +340,11 @@ export default function App() {
     setRoads((previous) => previous.map((road) => road.id === roadId
       ? { ...road, type: targetType, condition: 100, maxSpeedKmH: speed, trafficLevel: targetType === 'via_expressa' ? 'Livre' : 'Moderado' }
       : road));
+    if (roadBefore) {
+      setCities((previous) => previous.map((city) => city.id === roadBefore.fromCityId || city.id === roadBefore.toCityId
+        ? adjustCityApproval(city, 10)
+        : city));
+    }
     setEconomy((previous) => ({ ...previous, roadsPavedKm: previous.roadsPavedKm + Math.round(realKm) }));
     setSelectedRoad((road) => road?.id === roadId ? { ...road, type: targetType, condition: 100, maxSpeedKmH: speed } : road);
     
@@ -349,6 +377,11 @@ export default function App() {
     if (!spendMoney(cost)) return;
     playSound.build();
     setRoads((previous) => previous.map((road) => road.id === roadId ? { ...road, condition: 100 } : road));
+    if (roadBefore) {
+      setCities((previous) => previous.map((city) => city.id === roadBefore.fromCityId || city.id === roadBefore.toCityId
+        ? adjustCityApproval(city, 6)
+        : city));
+    }
     setSelectedRoad((road) => road?.id === roadId ? { ...road, condition: 100 } : road);
     setWorkFeedbackData({
       roadName: roadBefore?.name || 'Rodovia Recuperada',
@@ -501,6 +534,32 @@ export default function App() {
     setNotice('Progresso local carregado. A campanha continua de onde você parou.');
   };
 
+  const handleReclaimAdministration = useCallback((cityId: string) => {
+    const targetCity = cities.find((city) => city.id === cityId);
+    if (!targetCity) return;
+    const objectives = getRecoveryObjectives(targetCity, roads);
+    if (!allRecoveryObjectivesComplete(objectives)) {
+      setNotice('Para recuperar a administração, entregue uma rota confiável, fortaleça um bairro e eleve a segurança local.');
+      return;
+    }
+
+    playSound.fanfare();
+    setCities((previous) => previous.map((city) => {
+      if (city.id !== cityId) return city;
+      const politics = city.politics ?? ensureCityPolitics(city, 0).politics!;
+      return {
+        ...city,
+        politics: {
+          ...politics,
+          administration: 'player',
+          approval: Math.max(55, politics.approval),
+          rivals: politics.rivals.map((rival, index) => ({ ...rival, support: index === 0 ? 38 : Math.min(28, rival.support) })),
+        },
+      };
+    }));
+    setNotice(`${targetCity.name} foi reconquistada. A receita municipal e a administração voltaram a funcionar.`);
+  }, [cities, roads]);
+
   const handleExportSave = () => {
     const saveData = {
       version: 2,
@@ -529,7 +588,7 @@ export default function App() {
         setNotice('Arquivo de save inválido. Escolha um save do Viasmobs.');
         return;
       }
-      setCities(data.cities);
+      setCities(data.cities.map((city: City, index: number) => ensureCityPolitics(city, index)));
       setRoads(data.roads);
       if (Array.isArray(data.bossSectors)) setBossSectors(data.bossSectors);
       if (Array.isArray(data.regions)) setRegions(data.regions);
@@ -680,7 +739,8 @@ export default function App() {
       {sessionStarted && selectedCity && !activeTrip && (
         <GoogleMapsCitySheet
           key={`${selectedCity.id}-${citySheetTab}`}
-          city={selectedCity}
+          city={cities.find((city) => city.id === selectedCity.id) ?? selectedCity}
+          roads={roads}
           playerMoney={economy.money}
           initialTab={citySheetTab}
           onClose={() => { setSelectedCity(null); setCitySheetTab('overview'); }}
@@ -688,6 +748,7 @@ export default function App() {
           onSetPointB={(city) => { setPointB(city); setSelectedCity(null); showRoutes(); }}
           onUpgradeNeighborhood={handleUpgradeNeighborhood}
           onUpgradeSecurity={handleUpgradeSecurity}
+          onReclaimAdministration={handleReclaimAdministration}
         />
       )}
 
