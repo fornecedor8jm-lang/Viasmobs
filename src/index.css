@@ -171,6 +171,31 @@
 .rules-list p { margin: 0; color: #cbd5e1; font-size: 10px; line-height: 1.45; }
 .region-rule { margin-top: 13px; padding: 10px; border-left: 3px solid #f5b955; color: #fde7b3; background: rgba(245, 185, 85, .1); font-size: 11px; line-height: 1.45; }
 
+/* Tela inicial: mantém o mapa como cenário e deixa Novo Jogo e Continuar como únicas decisões principais. */
+.start-screen { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 22px; background: linear-gradient(115deg, rgba(2, 6, 23, .84), rgba(8, 18, 33, .65)); backdrop-filter: blur(4px); }
+.start-screen__panel { width: min(480px, 100%); padding: clamp(24px, 5vw, 38px); border: 1px solid rgba(245, 185, 85, .34); border-radius: 24px; background: linear-gradient(145deg, rgba(15, 28, 48, .97), rgba(5, 12, 23, .97)); box-shadow: 0 28px 80px rgba(0, 0, 0, .48); }
+.start-screen__brand { display: flex; align-items: center; gap: 12px; }
+.start-screen__mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: #172033; background: #f5b955; }
+.start-screen__brand p, .start-screen__intro > span { display: flex; align-items: center; gap: 6px; margin: 0; color: #b5c4d9; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.start-screen__brand h1 { margin: 1px 0 0; color: #f8fafc; font-size: 26px; font-weight: 800; letter-spacing: -.05em; }
+.start-screen__intro { margin: 32px 0 24px; }
+.start-screen__intro > span { color: #f5b955; }
+.start-screen__intro h2 { margin: 10px 0 10px; color: #f8fafc; font-size: clamp(22px, 6vw, 31px); font-weight: 800; line-height: 1.08; letter-spacing: -.05em; }
+.start-screen__intro p { margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.55; }
+.start-screen__actions { display: grid; gap: 10px; }
+.start-screen__actions button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 62px; padding: 12px 15px; border: 1px solid transparent; border-radius: 14px; text-align: left; transition: transform 160ms ease, background 160ms ease, border-color 160ms ease; }
+.start-screen__actions button:active { transform: scale(.98); }
+.start-screen__actions button > svg { flex: 0 0 auto; }
+.start-screen__actions span { display: grid; gap: 2px; }
+.start-screen__actions strong { font-size: 14px; font-weight: 800; }
+.start-screen__actions small { font-size: 10px; font-weight: 700; }
+.start-screen__new-game { color: #172033; background: #f5b955; }
+.start-screen__new-game:hover { background: #ffd27e; }
+.start-screen__continue { color: #e2e8f0; border-color: rgba(148, 163, 184, .24) !important; background: rgba(148, 163, 184, .11); }
+.start-screen__continue:hover:not(:disabled) { border-color: rgba(245, 185, 85, .45) !important; background: rgba(245, 185, 85, .12); }
+.start-screen__continue:disabled { color: #64748b; cursor: not-allowed; opacity: .68; }
+.start-screen__save-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 20px 0 0; color: #8ea2bd; font-size: 10px; font-weight: 700; }
+
 @media (max-width: 640px) {
   .viasmobs-header { top: 10px; left: 10px; right: 10px; padding: 9px; border-radius: 13px; }
   .viasmobs-brand p { display: none; }
@@ -197,6 +222,9 @@
   .tutorial-card h2 { font-size: 22px; }
   .rules-card { padding: 22px; }
   .rules-card h2 { font-size: 21px; }
+  .start-screen { padding: 14px; }
+  .start-screen__panel { padding: 25px 21px; border-radius: 20px; }
+  .start-screen__intro { margin: 27px 0 21px; }
 }
 
 @media (max-width: 390px) {

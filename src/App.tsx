@@ -17,12 +17,25 @@ import { TutorialModal } from './components/TutorialModal';
 import { ViasmobsHUD, RoadFilterType } from './components/ViasmobsHUD';
 import { MapLegendModal } from './components/MapLegendModal';
 import { SettingsModal } from './components/SettingsModal';
+import { StartScreen } from './components/StartScreen';
 import { WorkFeedbackModal, WorkFeedbackData } from './components/WorkFeedbackModal';
 import { playSound } from './utils/audio';
 
 const STORAGE_KEY = 'viasmobs_game_state_v2';
 const LEGACY_STORAGE_KEY = 'brasil_vias_game_state_v1';
 const DATA_MIGRATION_KEY = 'viasmobs_data_migration_v3';
+
+const INITIAL_ECONOMY: GameEconomy = {
+  money: 65000,
+  taxRevenuePerSec: 0,
+  tollRevenuePerSec: 0,
+  tradeRevenuePerSec: 0,
+  industryRevenuePerSec: 0,
+  totalEarned: 65000,
+  totalInvested: 0,
+  tripsCompleted: 0,
+  roadsPavedKm: 25,
+};
 
 type ActiveTab = 'explore' | 'routes' | 'pave' | 'boss' | 'regions';
 
@@ -34,6 +47,16 @@ function loadSavedState<T>(suffix: string, fallback: T): T {
     localStorage.removeItem(`${STORAGE_KEY}_${suffix}`);
     localStorage.removeItem(`${LEGACY_STORAGE_KEY}_${suffix}`);
     return fallback;
+  }
+}
+
+function hasLocalSave() {
+  try {
+    return ['cities', 'roads', 'economy'].every((suffix) => Boolean(
+      localStorage.getItem(`${STORAGE_KEY}_${suffix}`) ?? localStorage.getItem(`${LEGACY_STORAGE_KEY}_${suffix}`)
+    ));
+  } catch {
+    return false;
   }
 }
 
@@ -67,17 +90,7 @@ export default function App() {
   const [roads, setRoads] = useState<Road[]>(() => loadSavedState('roads', INITIAL_ROADS));
   const [bossSectors, setBossSectors] = useState<BossSector[]>(() => loadSavedState('boss', INITIAL_BOSS_SECTORS));
   const [regions, setRegions] = useState<RegionInfo[]>(() => loadSavedState('regions', REGIONS_DATA));
-  const [economy, setEconomy] = useState<GameEconomy>(() => loadSavedState('economy', {
-    money: 65000,
-    taxRevenuePerSec: 0,
-    tollRevenuePerSec: 0,
-    tradeRevenuePerSec: 0,
-    industryRevenuePerSec: 0,
-    totalEarned: 65000,
-    totalInvested: 0,
-    tripsCompleted: 0,
-    roadsPavedKm: 25,
-  }));
+  const [economy, setEconomy] = useState<GameEconomy>(() => loadSavedState('economy', INITIAL_ECONOMY));
   const [vehicles, setVehicles] = useState<ActiveVehicle[]>([]);
   const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
@@ -87,7 +100,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('explore');
   const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tutorialOpen, setTutorialOpen] = useState(() => !localStorage.getItem('viasmobs_tutorial_seen_v2'));
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [hasSavedGame, setHasSavedGame] = useState(() => hasLocalSave());
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [firstWorkComplete, setFirstWorkComplete] = useState(() => localStorage.getItem('viasmobs_first_work_complete_v1') === 'true');
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -127,15 +142,18 @@ export default function App() {
   }, [economy]);
 
   useEffect(() => {
+    if (!sessionStarted) return;
     localStorage.setItem(`${STORAGE_KEY}_cities`, JSON.stringify(cities));
     localStorage.setItem(`${STORAGE_KEY}_roads`, JSON.stringify(roads));
     localStorage.setItem(`${STORAGE_KEY}_boss`, JSON.stringify(bossSectors));
     localStorage.setItem(`${STORAGE_KEY}_regions`, JSON.stringify(regions));
     localStorage.setItem(`${STORAGE_KEY}_economy`, JSON.stringify(economy));
     localStorage.setItem(`${STORAGE_KEY}_claimed_quests`, JSON.stringify(claimedQuestIds));
-  }, [bossSectors, cities, economy, regions, roads, claimedQuestIds]);
+    setHasSavedGame(true);
+  }, [bossSectors, cities, economy, regions, roads, claimedQuestIds, sessionStarted]);
 
   useEffect(() => {
+    if (!sessionStarted) return;
     if (localStorage.getItem(DATA_MIGRATION_KEY)) return;
     const manacapuru = INITIAL_CITIES.find((city) => city.id === 'manacapuru');
     const manacapuruRoad = INITIAL_ROADS.find((road) => road.id === 'road_manaus_manacapuru');
@@ -152,7 +170,7 @@ export default function App() {
       return next;
     });
     localStorage.setItem(DATA_MIGRATION_KEY, 'true');
-  }, []);
+  }, [sessionStarted]);
 
   useEffect(() => {
     if (!notice) return;
@@ -161,6 +179,10 @@ export default function App() {
   }, [notice]);
 
   useEffect(() => {
+    if (!sessionStarted) {
+      setVehicles([]);
+      return;
+    }
     const availableRoads = roads.filter((road) => {
       const origin = cities.find((city) => city.id === road.fromCityId);
       const destination = cities.find((city) => city.id === road.toCityId);
@@ -182,9 +204,10 @@ export default function App() {
         cargoValue: Math.round((road.realKm || 50) * 22),
       };
     }));
-  }, []);
+  }, [sessionStarted]);
 
   useEffect(() => {
+    if (!sessionStarted) return;
     const timer = window.setInterval(() => {
       const unlockedCities = cities.filter((city) => city.unlocked);
       const taxes = unlockedCities.reduce((sum, city) => sum + city.taxRevenuePerHour * (city.dominated ? 1.35 : 1 + city.influence / 200), 0) / 3600;
@@ -230,7 +253,7 @@ export default function App() {
     }, 200);
 
     return () => window.clearInterval(timer);
-  }, [cities, roads]);
+  }, [cities, roads, sessionStarted]);
 
   const spendMoney = useCallback((cost: number) => {
     if (!Number.isFinite(cost) || cost <= 0) {
@@ -447,22 +470,35 @@ export default function App() {
     setRoads(INITIAL_ROADS);
     setBossSectors(INITIAL_BOSS_SECTORS);
     setRegions(REGIONS_DATA);
-    setEconomy({
-      money: 65000,
-      taxRevenuePerSec: 0,
-      tollRevenuePerSec: 0,
-      tradeRevenuePerSec: 0,
-      industryRevenuePerSec: 0,
-      totalEarned: 65000,
-      totalInvested: 0,
-      tripsCompleted: 0,
-      roadsPavedKm: 25,
-    });
+    setEconomy(INITIAL_ECONOMY);
+    setVehicles([]);
+    setActiveTrip(null);
+    setSelectedCity(null);
+    setSelectedRoad(null);
+    setPointA(INITIAL_CITIES.find((city) => city.id === 'macapa') ?? null);
+    setPointB(INITIAL_CITIES.find((city) => city.id === 'santana') ?? null);
+    setActiveTab('explore');
+    setFocusTarget(null);
+    setRoadFilter('all');
+    setWeatherRainActive(false);
+    setTileLayer('terrain');
     setClaimedQuestIds([]);
     setFirstWorkComplete(false);
     setTutorialStep(0);
     setTutorialOpen(true);
     setNotice('Campanha reiniciada. Bem-vindo de volta ao Amapá!');
+  };
+
+  const handleNewGame = () => {
+    handleResetGame();
+    setSessionStarted(true);
+  };
+
+  const handleContinueGame = () => {
+    if (!hasSavedGame) return;
+    setSessionStarted(true);
+    setTutorialOpen(!localStorage.getItem('viasmobs_tutorial_seen_v2'));
+    setNotice('Progresso local carregado. A campanha continua de onde você parou.');
   };
 
   const handleExportSave = () => {
@@ -570,7 +606,7 @@ export default function App() {
         />
       </main>
 
-      {!activeTrip && (
+      {sessionStarted && !activeTrip && (
         <ViasmobsHUD
           economy={economy}
           cities={cities}
@@ -594,7 +630,7 @@ export default function App() {
         />
       )}
 
-      {activeTab === 'routes' && !activeTrip && (
+      {sessionStarted && activeTab === 'routes' && !activeTrip && (
         <GoogleMapsDirections
           cities={cities}
           roads={roads}
@@ -611,7 +647,7 @@ export default function App() {
         />
       )}
 
-      {activeTrip && (
+      {sessionStarted && activeTrip && (
         <GoogleMapsLiveNav
           activeTrip={activeTrip}
           originCity={cities.find((city) => city.id === activeTrip.originCityId)}
@@ -620,7 +656,7 @@ export default function App() {
         />
       )}
 
-      {activeTab === 'pave' && !activeTrip && (
+      {sessionStarted && activeTab === 'pave' && !activeTrip && (
         <GoogleMapsPaveSheet
           roads={roads}
           playerMoney={economy.money}
@@ -641,7 +677,7 @@ export default function App() {
         />
       )}
 
-      {selectedCity && !activeTrip && (
+      {sessionStarted && selectedCity && !activeTrip && (
         <GoogleMapsCitySheet
           key={`${selectedCity.id}-${citySheetTab}`}
           city={selectedCity}
@@ -655,7 +691,7 @@ export default function App() {
         />
       )}
 
-      {activeTab === 'boss' && !activeTrip && (
+      {sessionStarted && activeTab === 'boss' && !activeTrip && (
         <GoogleMapsBossSheet
           bossSectors={bossSectors}
           playerMoney={economy.money}
@@ -664,7 +700,7 @@ export default function App() {
         />
       )}
 
-      {activeTab === 'regions' && !activeTrip && (
+      {sessionStarted && activeTab === 'regions' && !activeTrip && (
         <GoogleMapsRegionsSheet
           regions={regions}
           cities={cities}
@@ -675,7 +711,7 @@ export default function App() {
       )}
 
       {/* Modals & Overlays */}
-      {tutorialOpen && (
+      {sessionStarted && tutorialOpen && (
         <TutorialModal
           initialStep={tutorialStep}
           onClose={closeTutorial}
@@ -684,7 +720,7 @@ export default function App() {
         />
       )}
 
-      {rulesOpen && (
+      {sessionStarted && rulesOpen && (
         <RulesModal
           currentRegionName={currentRegion.name}
           citiesRequired={currentRegion.citiesRequiredToUnlockNext}
@@ -692,11 +728,11 @@ export default function App() {
         />
       )}
 
-      {legendOpen && (
+      {sessionStarted && legendOpen && (
         <MapLegendModal onClose={() => setLegendOpen(false)} />
       )}
 
-      {settingsOpen && (
+      {sessionStarted && settingsOpen && (
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onResetGame={handleResetGame}
@@ -710,7 +746,7 @@ export default function App() {
         />
       )}
 
-      {workFeedbackData && (
+      {sessionStarted && workFeedbackData && (
         <WorkFeedbackModal
           data={workFeedbackData}
           onClose={() => {
@@ -721,6 +757,14 @@ export default function App() {
               setPendingTutorialStep(null);
             }
           }}
+        />
+      )}
+
+      {!sessionStarted && (
+        <StartScreen
+          hasSavedGame={hasSavedGame}
+          onNewGame={handleNewGame}
+          onContinue={handleContinueGame}
         />
       )}
     </div>
