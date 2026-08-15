@@ -110,7 +110,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button onClick={onReturnToStartScreen} className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-bold text-xs">
                 Menu Inicial
               </button>
+              <button onClick={() => setConfirmReset(true)} className="col-span-2 p-2.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/70 border border-rose-700/60 text-rose-200 font-bold text-xs">
+                Novo Jogo
+              </button>
             </div>
+            {confirmReset && (
+              <div className="space-y-2 rounded-xl bg-rose-950/35 border border-rose-700/50 p-2.5 text-center">
+                <p className="text-rose-200 font-bold text-xs">Começar uma campanha nova? O save atual será substituído.</p>
+                <div className="flex justify-center gap-2">
+                  <button onClick={() => setConfirmReset(false)} className="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs">Cancelar</button>
+                  <button onClick={() => { onResetGame(); onClose(); }} className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs">Confirmar Novo Jogo</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Salvamento Local */}
@@ -174,45 +186,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           )}
-
-          {/* Novo Jogo */}
-          <div className="p-3.5 rounded-2xl bg-rose-950/20 border border-rose-800/40">
-            {!confirmReset ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <b className="text-rose-300 text-xs">Novo Jogo</b>
-                  <p className="text-[10px] text-slate-400">Começar do zero no Amapá</p>
-                </div>
-                <button
-                  onClick={() => setConfirmReset(true)}
-                  className="px-3 py-1.5 rounded-xl bg-rose-900/60 hover:bg-rose-800 text-rose-200 font-bold text-xs border border-rose-700"
-                >
-                  Reiniciar
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2 text-center">
-                <p className="text-rose-300 font-bold text-xs">Tem certeza? Todo o progresso será reiniciado.</p>
-                <div className="flex justify-center gap-2">
-                  <button
-                    onClick={() => setConfirmReset(false)}
-                    className="px-3 py-1 rounded-xl bg-slate-800 text-slate-300 text-xs"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      onResetGame();
-                      onClose();
-                    }}
-                    className="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs"
-                  >
-                    Sim, Reiniciar Tudo
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
 
         </div>
 
